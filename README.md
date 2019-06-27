@@ -15,7 +15,7 @@ experiment with interactive multiobjective optimization methods.
 ### Reasons for this refactoring
 The basic layout of the original DESDEO framework is confusing and is not
 encouraging for a new user. One of the main goals of this refactoring, is to
-follow a (KISS)[https://en.wikipedia.org/wiki/KISS_principle]-mentality. The
+follow a [KISS](https://en.wikipedia.org/wiki/KISS_principle)-mentality. The
 proposed structure is a modular one, with one master module (Manager) meant to
 work as a message broker between the other modules. Each module should, in
 principle, work as an autonomous unit. This will allow for better scaling,
