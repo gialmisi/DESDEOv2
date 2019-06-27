@@ -15,7 +15,7 @@ experiment with interactive multiobjective optimization methods.
 ### Reasons for this refactoring
 The basic layout of the original DESDEO framework is confusing and is not
 encouraging for a new user. One of the main goals of this refactoring, is to
-follow a [https://en.wikipedia.org/wiki/KISS_principle](KISS)-mentality. The
+follow a [KISS](https://en.wikipedia.org/wiki/KISS_principle)-mentality. The
 proposed structure is a modular one, with one master module (Manager) meant to
 work as a message broker between the other modules. Each module should, in
 principle, work as an autonomous unit. This will allow for better scaling,
@@ -39,7 +39,7 @@ A proposed simple modular structure is presented in the picture below. It is
 quite general in the terms used, but it is supposed to serve as a sketch of the
 program's final structure.
 
-![Diagram of the structure of DESDEOv2](https://github.com/gialmisi/DESDEOv2/raw/master/assets/DESDEOv2_structure.png "Concept structure of DESDEOv2")
+![Diagram of the structure of DESDEOv2](https://github.com/gialmisi/DESDEOv2/blob/master/assests/DESDEOv2_structure.png "Concept structure of DESDEOv2")
 
 ## Development
 *Disclaimer*: Everything is under consideration at the moment and the project is
