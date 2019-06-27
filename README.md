@@ -39,7 +39,7 @@ A proposed simple modular structure is presented in the picture below. It is
 quite general in the terms used, but it is supposed to serve as a sketch of the
 program's final structure.
 
-![Diagram of the structure of DESDEOv2](https://github.com/gialmisi/DESDEOv2/raw/master/assets/DESDEOv2_structure.png "Concept structure of DESDEOv2")
+![Diagram of the structure of DESDEOv2](https://github.com/gialmisi/DESDEOv2/blob/master/assests/DESDEOv2_structure.png "Concept structure of DESDEOv2")
 
 ## Development
 *Disclaimer*: Everything is under consideration at the moment and the project is
