@@ -41,6 +41,7 @@ class Variable:
         initial_value (float): Initial value of the variable.
         lower_bound (float): Lower bound of the variable.
         upper_bound (float): Upper bound of the variable.
+        current_value (float): The current value the variable holds.
 
     """
 
@@ -56,28 +57,42 @@ class Variable:
         self.__initial_value: float
         self.__lower_bound: float
         self.__upper_bound: float
+        self.__current_value: float
         # Check that the bounds make sense
         if not (lower_bound < upper_bound):
-            raise VariableError(
-                "Lower bound should be less than the upper bound.")
+            msg = ("Lower bound {} should be less than the upper bound "
+                   "{}.").format(lower_bound, upper_bound)
+            logger.debug(msg)
+            raise VariableError(msg)
 
         # Check that the initial value is between the bounds
         if not (lower_bound < initial_value < upper_bound):
-            raise VariableError(
-                "The initial value should be between the upper and lower "
-                "bounds.")
+            msg = ("The initial value {} should be between the "
+                   "upper ({}) and lower ({}) bounds.".format(
+                       initial_value, lower_bound, upper_bound))
+            logger.debug(msg)
+            raise VariableError(msg)
 
         self.__lower_bound = lower_bound
         self.__upper_bound = upper_bound
         self.__initial_value = initial_value
+        self.__current_value = initial_value
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.__name
 
     @property
-    def initial_value(self):
+    def initial_value(self) -> float:
         return self.__initial_value
+
+    @property
+    def current_value(self) -> float:
+        return self.__current_value
+
+    @current_value.setter
+    def current_value(self, value: float):
+        self.__current_value = value
 
     def get_bounds(self) -> Tuple[float, float]:
         """Return the bounds of the variables as a tuple.

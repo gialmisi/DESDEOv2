@@ -29,6 +29,15 @@ def test_get_bounds(x_variable):
     assert(all(res))
 
 
+def test_init_current_value(x_variable):
+    assert(x_variable.current_value == approx(5.2))
+
+
+def test_update_current_value(x_variable):
+    x_variable.current_value = 78.45
+    assert(x_variable.current_value == approx(78.45))
+
+
 def test_bad_bounds():
     with pytest.raises(VariableError):
         Variable("x", 5.3, 2.3, 1.4)
