@@ -50,6 +50,6 @@ class CustomMOProblem(ProblemBase):
     def __init__(self,
                  objectives: np.ndarray,
                  variables: np.ndarray,
-                 constraints: np.ndarray):
+                 constraints: np.ndarray) -> None:
         # TODO
         pass
