@@ -11,7 +11,7 @@ def scalar_obj_1():
     def fun(vec):
         return vec[0] + vec[1] + vec[2]
 
-    return ScalarObjective("Objective 1", fun, ["x", "y", "z"])
+    return ScalarObjective("Objective 1", fun)
 
 
 @pytest.fixture

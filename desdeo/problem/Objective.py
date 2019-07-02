@@ -6,11 +6,9 @@ import logging
 import logging.config
 from os import path
 from abc import ABC, abstractmethod
-from typing import List, Callable, Dict
+from typing import Callable
 
 import numpy as np
-
-from desdeo.problem.Variable import Variable
 
 log_conf_path = path.join(path.dirname(path.abspath(__file__)),
                           "../../logger.cfg")
@@ -48,15 +46,12 @@ class ScalarObjective(ObjectiveBase):
     Args:
         name (str): Name of the objective.
         __evaluator (Callable): The function to evaluate the objective's value.
-        __variable_names (List[str]): A list of the variable names present in
-        the objective's callable function.
 
     Attributes:
-        __name (str): Name of the objective.
-        __evaluator (Callable): The function to evaluate the objective's value.
-        __variable_names (List[str]): A list of the variable names present in
-        the objective's callable function.
-        __value (float): The current value of the objective function.
+        name (str): Name of the objective.
+        value (float): The current value of the objective function.
+        evaluator (Callable): The function to evaluate the objective's value.
+
 
     Note:
         The evaluator should used named variables. See the examples.
@@ -64,20 +59,14 @@ class ScalarObjective(ObjectiveBase):
     """
     def __init__(self,
                  name: str,
-                 evaluator: Callable,
-                 variable_names: List[str]) -> None:
+                 evaluator: Callable) -> None:
         self.__name: str = name
         self.__evaluator: Callable = evaluator
-        self.__variable_names: List[str] = variable_names
         self.__value: float = 0.0
 
     @property
     def name(self) -> str:
         return self.__name
-
-    @property
-    def variable_names(self) -> List[str]:
-        return self.__variable_names
 
     @property
     def value(self) -> float:

@@ -65,12 +65,12 @@ class ScalarConstraint(ConstraintBase):
         evaluator (Callable): A callable to evaluate the constraint.
 
     Attributes:
-        __name (str): Name of the constraint.
-        __n_decision_vars (int): Number of decision variables present in the
+        name (str): Name of the constraint.
+        n_decision_vars (int): Number of decision variables present in the
         constraint.
-        __n_objective_funs (int): Number of objective functions present in
+        n_objective_funs (int): Number of objective functions present in
         the constraint.
-        __evaluator (Callable): A callable to evaluate the constraint.
+        evaluator (Callable): A callable to evaluate the constraint.
 
     """
     def __init__(self,
