@@ -8,6 +8,8 @@ from os import path
 from abc import ABC, abstractmethod
 from typing import List, Callable, Dict
 
+import numpy as np
+
 from desdeo.problem.Variable import Variable
 
 log_conf_path = path.join(path.dirname(path.abspath(__file__)),
@@ -29,11 +31,11 @@ class ObjectiveBase(ABC):
     """
 
     @abstractmethod
-    def evaluate(self, variables: List[Variable]) -> float:
+    def evaluate(self, decision_vector: np.ndarray) -> float:
         """Evaluates the objective according to a decision variable vector.
 
         Args:
-            variables (List[Variable]): A vector of Variables to be used in
+            variables (np.ndarray): A vector of Variables to be used in
             the evaluation of the objective.
 
         """
@@ -48,12 +50,13 @@ class ScalarObjective(ObjectiveBase):
         __evaluator (Callable): The function to evaluate the objective's value.
         __variable_names (List[str]): A list of the variable names present in
         the objective's callable function.
+
     Attributes:
-        name (str): Name of the objective.
+        __name (str): Name of the objective.
         __evaluator (Callable): The function to evaluate the objective's value.
         __variable_names (List[str]): A list of the variable names present in
         the objective's callable function.
-        value (float): The current value of the objective function.
+        __value (float): The current value of the objective function.
 
     Note:
         The evaluator should used named variables. See the examples.
@@ -84,27 +87,25 @@ class ScalarObjective(ObjectiveBase):
     def value(self, value: float):
         self.__value = value
 
-    def evaluate(self, variables: List[Variable]) -> float:
+    def evaluate(self, decision_vector: np.ndarray) -> float:
         """Evaluate the objective functions value.
 
         Args:
-            variables (List[Variable]): A vector of variables to evaluate the
+            variables (np.ndarray): A vector of variables to evaluate the
             objective function with.
         Returns:
             float: The evaluated value of the objective function.
 
         """
-        arguments = {var.name: var.current_value for var in variables}
-
         try:
-            result = self.__evaluator(**arguments)
-        except TypeError:
-            msg = "Bad arguments {} supplied to the evaluator.".format(
-                str(arguments))
+            result = self.__evaluator(decision_vector)
+        except (TypeError, IndexError) as e:
+            msg = "Bad argument {} supplied to the evaluator: {}".format(
+                str(decision_vector), str(e))
             logger.debug(msg)
             raise ObjectiveError(msg)
 
         # Store the value of the objective
-        self.value = result
+        self.__value = result
 
         return result

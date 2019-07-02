@@ -1,25 +1,22 @@
 import pytest
 from pytest import approx
+import numpy as np
 
 
 from desdeo.problem.Objective import ScalarObjective, ObjectiveError
-from desdeo.problem.Variable import Variable
 
 
 @pytest.fixture
 def scalar_obj_1():
-    def fun(x, y, z):
-        return x + y + z
+    def fun(vec):
+        return vec[0] + vec[1] + vec[2]
 
     return ScalarObjective("Objective 1", fun, ["x", "y", "z"])
 
 
 @pytest.fixture
 def variables_xyz():
-    variables = []
-    variables.append(Variable("x", 5.5))
-    variables.append(Variable("y", -4.25))
-    variables.append(Variable("z", 0.05))
+    variables = np.array([5.5, -4.25, 0.05])
 
     return variables
 

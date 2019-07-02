@@ -1,5 +1,6 @@
 """Constaints classes representing variables to be used with the Problem
-classes.
+classes. This class may be used for demonstrative problems. It is not a
+necessary class to be used.
 
 """
 
@@ -57,7 +58,7 @@ class Variable:
         self.__initial_value: float
         self.__lower_bound: float
         self.__upper_bound: float
-        self.__current_value: float
+        self.__current_value: float  # NOTE: This is probably a useless attr
         # Check that the bounds make sense
         if not (lower_bound < upper_bound):
             msg = ("Lower bound {} should be less than the upper bound "
