@@ -2,7 +2,7 @@ import pytest
 from pytest import approx
 import numpy as np
 
-from desdeo.problem.Problem import ScalarMOProblem
+from desdeo.problem.Problem import ScalarMOProblem, ProblemError
 from desdeo.problem.Variable import Variable
 from desdeo.problem.Objective import ScalarObjective
 from desdeo.problem.Constraint import ScalarConstraint
@@ -67,7 +67,9 @@ def variables():
 
 @pytest.fixture
 def simple_scalar_moproblem(scalar_objectives, variables, scalar_constraints):
-    return ScalarMOProblem(scalar_objectives, variables, scalar_constraints)
+    return ScalarMOProblem(scalar_objectives,
+                           variables,
+                           scalar_constraints)
 
 
 @pytest.fixture
@@ -93,11 +95,13 @@ def test_init(simple_scalar_moproblem):
 
 
 def test_evaluate(simple_scalar_moproblem, nice_population):
+    # Test the evaluation of a simple problem
     p = simple_scalar_moproblem
     pop = nice_population
 
     obj_vals, cons_vals = p.evaluate(pop)
 
+    # Check that the evaluated values and constraints are correct
     # 1st row
     assert(np.all(np.isclose(np.array([-4.999999, 51.04, 2.2]),
                              obj_vals[0])))
@@ -109,3 +113,41 @@ def test_evaluate(simple_scalar_moproblem, nice_population):
                              obj_vals[1])))
     assert(np.all(np.isclose(np.array([-6.3, -10.780003949999, -18.0]),
                              cons_vals[1])))
+
+    # 3rd row
+    assert(np.all(np.isclose(np.array([-1.18, 32.98, 4.2]),
+                             obj_vals[2])))
+    assert(np.all(np.isclose(np.array([9.18, -58.6164, -12.8]),
+                             cons_vals[2])))
+
+    # 4th row
+    assert(np.all(np.isclose(np.array([-13.8, -46.7, -10.5]),
+                             obj_vals[3])))
+    assert(np.all(np.isclose(np.array([-8.0, 639.46, -16.7]),
+                             cons_vals[3])))
+
+
+def test_evaluate_wrong_length(simple_scalar_moproblem):
+    p = simple_scalar_moproblem
+    bad_pop = np.array([[1, 2, 3], [3, 3, 3], [1, 2, 3]])
+
+    with pytest.raises(ProblemError):
+        p.evaluate(bad_pop)
+
+
+def test_bad_nadir(scalar_objectives, variables, scalar_constraints):
+    with pytest.raises(ProblemError):
+        ScalarMOProblem(scalar_objectives,
+                        variables,
+                        scalar_constraints,
+                        nadir=[1, 4],
+                        ideal=None)
+
+
+def test_bad_ideal(scalar_objectives, variables, scalar_constraints):
+    with pytest.raises(ProblemError):
+        ScalarMOProblem(scalar_objectives,
+                        variables,
+                        scalar_constraints,
+                        nadir=None,
+                        ideal=[1, 2])

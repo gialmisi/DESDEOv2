@@ -3,7 +3,9 @@ from pytest import approx
 
 import numpy as np
 
-from desdeo.problem.Constraint import ScalarConstraint, ConstraintError
+from desdeo.problem.Constraint import (ScalarConstraint,
+                                       ConstraintError,
+                                       constraint_function_factory)
 
 
 @pytest.fixture
@@ -141,3 +143,56 @@ def test_bad_evaluate_call(simple_constraint_factory,
     # Too many objective function values
     with pytest.raises(ConstraintError):
         cons.evaluate(decision_vector_1, np.ones(10))
+
+
+def test_constraint_function_factory_equal():
+    cons = constraint_function_factory(
+        lambda x: x[0] + x[1],
+        10.0,
+        "==")
+    array_1 = np.array([2.5, 7.5])
+    array_2 = np.array([-7.1, 10.2])
+
+    res_1 = cons(array_1)
+    res_2 = cons(array_2)
+
+    assert(res_1 == approx(0.0))
+    assert(res_2 == approx(-6.9))
+
+
+def test_constraint_function_factory_lt():
+    cons = constraint_function_factory(
+        lambda x: x[0] + x[1],
+        5.0,
+        "<")
+    array_1 = np.array([2.5, 7.5])
+    array_2 = np.array([-7.1, 10.2])
+
+    res_1 = cons(array_1)
+    res_2 = cons(array_2)
+
+    assert(res_1 == approx(-5.0))
+    assert(res_2 == approx(1.9))
+
+
+def test_constraint_function_factory_gt():
+    cons = constraint_function_factory(
+        lambda x: x[0] + x[1],
+        9.5,
+        ">")
+    array_1 = np.array([2.5, 7.5])
+    array_2 = np.array([-7.1, 10.2])
+
+    res_1 = cons(array_1)
+    res_2 = cons(array_2)
+
+    assert(res_1 == approx(0.5))
+    assert(res_2 == approx(-6.4))
+
+
+def test_constraint_function_factory_bad_operator():
+    with pytest.raises(ValueError):
+        constraint_function_factory(
+            lambda x: x[0] + x[1],
+            9.5,
+            "x")

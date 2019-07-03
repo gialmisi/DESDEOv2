@@ -45,24 +45,35 @@ class ScalarObjective(ObjectiveBase):
 
     Args:
         name (str): Name of the objective.
-        __evaluator (Callable): The function to evaluate the objective's value.
+        evaluator (Callable): The function to evaluate the objective's value.
+        lower_bound (float): The lower bound of the objective.
+        upper_bound (float): The upper bound of the objective.
 
     Attributes:
         name (str): Name of the objective.
         value (float): The current value of the objective function.
         evaluator (Callable): The function to evaluate the objective's value.
-
-
-    Note:
-        The evaluator should used named variables. See the examples.
+        lower_bound (float): The lower bound of the objective.
+        upper_bound (float): The upper bound of the objective.
 
     """
     def __init__(self,
                  name: str,
-                 evaluator: Callable) -> None:
+                 evaluator: Callable,
+                 lower_bound: float = -np.inf,
+                 upper_bound: float = np.inf) -> None:
+        # Check that the bounds make sense
+        if not (lower_bound < upper_bound):
+            msg = ("Lower bound {} should be less than the upper bound "
+                   "{}.").format(lower_bound, upper_bound)
+            logger.debug(msg)
+            raise ObjectiveError(msg)
+
         self.__name: str = name
         self.__evaluator: Callable = evaluator
         self.__value: float = 0.0
+        self.__lower_bound: float = lower_bound
+        self.__upper_bound: float = upper_bound
 
     @property
     def name(self) -> str:
@@ -75,6 +86,18 @@ class ScalarObjective(ObjectiveBase):
     @value.setter
     def value(self, value: float):
         self.__value = value
+
+    @property
+    def evaluator(self) -> Callable:
+        return self.__evaluator
+
+    @property
+    def lower_bound(self) -> float:
+        return self.__lower_bound
+
+    @property
+    def upper_bound(self) -> float:
+        return self.__upper_bound
 
     def evaluate(self, decision_vector: np.ndarray) -> float:
         """Evaluate the objective functions value.

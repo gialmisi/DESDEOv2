@@ -6,7 +6,7 @@ import logging
 import logging.config
 from os import path
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Callable, List
 
 import numpy as np
 
@@ -145,3 +145,61 @@ class ScalarConstraint(ConstraintBase):
             raise ConstraintError(msg)
 
         return result
+
+
+# A static variable indicating the supported operators for constructing a
+# constraint.
+supported_operators: List[str] = ["==", "<", ">"]
+
+
+def constraint_function_factory(lhs: Callable,
+                                rhs: float,
+                                operator: str) -> Callable:
+    """A function that creates an evaluator to be used with the ScalarConstraint
+    class. Constraints should be formulated in a way where all the mathematical
+    expression are on the left hand side, and the constants on the right hand
+    side.
+
+    Args:
+       lhs (Callable): The left hand side of the constraint. Should be a
+       callable function representing a mathematical expression.
+       rhs (float): The right hand side of a constraint. Represents the right
+       hand side of the constraint.
+       operator (str): The kind of constraint. Can be '==', '<', '>'.
+
+    Returns
+       Callable: A function that can be called to evaluate the rhs and
+       which returns representing how the constraint is obeyed. A negative
+       value represent a violation of the constraint and a positive value an
+       agreement with the constraint. The absolute value of the float is a
+       direct indicator how the constraint is violated/agdreed with.
+
+    """
+    if operator not in supported_operators:
+        msg = "The operator {} supplied is not supported.".format(operator)
+        logger.debug(msg)
+        raise ValueError(msg)
+
+    if operator == "==":
+        def equals(vector: np.ndarray) -> float:
+            return -abs(lhs(vector) - rhs)
+
+        return equals
+
+    elif operator == "<":
+        def lt(vector: np.ndarray) -> float:
+            return rhs - lhs(vector)
+
+        return lt
+
+    elif operator == ">":
+        def gt(vector: np.ndarray) -> float:
+            return lhs(vector) - rhs
+
+        return gt
+
+    else:
+        # if for some reason a bad operator falls through
+        msg = "Bad operator argument supplied: {}".format(operator)
+        logger.debug(msg)
+        raise ValueError(msg)
