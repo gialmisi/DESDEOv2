@@ -16,7 +16,7 @@ from desdeo.problem.Objective import ScalarObjective
 from desdeo.problem.Variable import Variable
 
 log_conf_path = path.join(
-    path.dirname(path.abspath(__file__)), "../../logger.cfg"
+    path.dirname(path.abspath(__file__)), "../logger.cfg"
 )
 logging.config.fileConfig(fname=log_conf_path, disable_existing_loggers=False)
 logger = logging.getLogger(__file__)
