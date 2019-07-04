@@ -6,15 +6,15 @@ necessary class to be used.
 
 import logging
 import logging.config
-from typing import Tuple
 from os import path
+from typing import Tuple
 
 import numpy as np
 
-log_conf_path = path.join(path.dirname(path.abspath(__file__)),
-                          "../../logger.cfg")
-logging.config.fileConfig(fname=log_conf_path,
-                          disable_existing_loggers=False)
+log_conf_path = path.join(
+    path.dirname(path.abspath(__file__)), "../../logger.cfg"
+)
+logging.config.fileConfig(fname=log_conf_path, disable_existing_loggers=False)
 logger = logging.getLogger(__file__)
 
 
@@ -23,6 +23,7 @@ class VariableError(Exception):
     Variable class.
 
     """
+
     pass
 
 
@@ -61,16 +62,20 @@ class Variable:
         self.__current_value: float  # NOTE: This is probably a useless attr
         # Check that the bounds make sense
         if not (lower_bound < upper_bound):
-            msg = ("Lower bound {} should be less than the upper bound "
-                   "{}.").format(lower_bound, upper_bound)
+            msg = (
+                "Lower bound {} should be less than the upper bound " "{}."
+            ).format(lower_bound, upper_bound)
             logger.debug(msg)
             raise VariableError(msg)
 
         # Check that the initial value is between the bounds
         if not (lower_bound < initial_value < upper_bound):
-            msg = ("The initial value {} should be between the "
-                   "upper ({}) and lower ({}) bounds.".format(
-                       initial_value, lower_bound, upper_bound))
+            msg = (
+                "The initial value {} should be between the "
+                "upper ({}) and lower ({}) bounds.".format(
+                    initial_value, lower_bound, upper_bound
+                )
+            )
             logger.debug(msg)
             raise VariableError(msg)
 

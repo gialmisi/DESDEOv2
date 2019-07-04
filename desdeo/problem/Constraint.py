@@ -4,16 +4,16 @@
 
 import logging
 import logging.config
-from os import path
 from abc import ABC, abstractmethod
+from os import path
 from typing import Callable, List
 
 import numpy as np
 
-log_conf_path = path.join(path.dirname(path.abspath(__file__)),
-                          "../../logger.cfg")
-logging.config.fileConfig(fname=log_conf_path,
-                          disable_existing_loggers=False)
+log_conf_path = path.join(
+    path.dirname(path.abspath(__file__)), "../../logger.cfg"
+)
+logging.config.fileConfig(fname=log_conf_path, disable_existing_loggers=False)
 logger = logging.getLogger(__file__)
 
 
@@ -29,9 +29,9 @@ class ConstraintBase(ABC):
     """
 
     @abstractmethod
-    def evaluate(self,
-                 decision_vector: np.ndarray,
-                 objective_vector: np.ndarray) -> float:
+    def evaluate(
+        self, decision_vector: np.ndarray, objective_vector: np.ndarray
+    ) -> float:
         """Evaluate the constraint functions and return a float
         indicating how severely the constraint has been broken.
 
@@ -73,11 +73,14 @@ class ScalarConstraint(ConstraintBase):
         evaluator (Callable): A callable to evaluate the constraint.
 
     """
-    def __init__(self,
-                 name: str,
-                 n_decision_vars: int,
-                 n_objective_funs: int,
-                 evaluator: Callable) -> None:
+
+    def __init__(
+        self,
+        name: str,
+        n_decision_vars: int,
+        n_objective_funs: int,
+        evaluator: Callable,
+    ) -> None:
         self.__name: str = name
         self.__n_decision_vars: int = n_decision_vars
         self.__n_objective_funs: int = n_objective_funs
@@ -99,9 +102,9 @@ class ScalarConstraint(ConstraintBase):
     def evaluator(self) -> Callable:
         return self.__evaluator
 
-    def evaluate(self,
-                 decision_vector: np.ndarray,
-                 objective_vector: np.ndarray) -> float:
+    def evaluate(
+        self, decision_vector: np.ndarray, objective_vector: np.ndarray
+    ) -> float:
         """Evaluate the constraint and return a float indicating how and if the
         constraint was violated. A negative value indicates a violation and
         a positive value indicates a non-violation.
@@ -117,31 +120,33 @@ class ScalarConstraint(ConstraintBase):
 
         """
         if len(decision_vector) != self.__n_decision_vars:
-            msg = ("Decision vector {} is of wrong lenght: "
-                   "Should be {}, but is {}").format(
-                       decision_vector,
-                       self.__n_decision_vars,
-                       len(decision_vector))
+            msg = (
+                "Decision vector {} is of wrong lenght: "
+                "Should be {}, but is {}"
+            ).format(
+                decision_vector, self.__n_decision_vars, len(decision_vector)
+            )
             logger.debug(msg)
             raise ConstraintError(msg)
 
         if len(objective_vector) != self.__n_objective_funs:
-            msg = ("Objective vector {} is of wrong lenght:"
-                   " Should be {}, but is {}").format(
-                       objective_vector,
-                       self.__n_objective_funs,
-                       len(objective_vector))
+            msg = (
+                "Objective vector {} is of wrong lenght:"
+                " Should be {}, but is {}"
+            ).format(
+                objective_vector,
+                self.__n_objective_funs,
+                len(objective_vector),
+            )
             logger.debug(msg)
             raise ConstraintError(msg)
 
         try:
             result = self.__evaluator(decision_vector, objective_vector)
         except (TypeError, IndexError) as e:
-            msg = ("Bad arguments {} and {} supllied to the evaluator:"
-                   " {}").format(
-                       str(decision_vector),
-                       objective_vector,
-                       str(e))
+            msg = (
+                "Bad arguments {} and {} supllied to the evaluator:" " {}"
+            ).format(str(decision_vector), objective_vector, str(e))
             raise ConstraintError(msg)
 
         return result
@@ -152,9 +157,9 @@ class ScalarConstraint(ConstraintBase):
 supported_operators: List[str] = ["==", "<", ">"]
 
 
-def constraint_function_factory(lhs: Callable,
-                                rhs: float,
-                                operator: str) -> Callable:
+def constraint_function_factory(
+    lhs: Callable, rhs: float, operator: str
+) -> Callable:
     """A function that creates an evaluator to be used with the ScalarConstraint
     class. Constraints should be formulated in a way where all the mathematical
     expression are on the left hand side, and the constants on the right hand
@@ -181,18 +186,21 @@ def constraint_function_factory(lhs: Callable,
         raise ValueError(msg)
 
     if operator == "==":
+
         def equals(vector: np.ndarray) -> float:
             return -abs(lhs(vector) - rhs)
 
         return equals
 
     elif operator == "<":
+
         def lt(vector: np.ndarray) -> float:
             return rhs - lhs(vector)
 
         return lt
 
     elif operator == ">":
+
         def gt(vector: np.ndarray) -> float:
             return lhs(vector) - rhs
 

@@ -1,8 +1,8 @@
-from desdeo.problem.Variable import Variable, VariableError
-
+import numpy as np
 import pytest
 from pytest import approx
-import numpy as np
+
+from desdeo.problem.Variable import Variable, VariableError
 
 
 @pytest.fixture
@@ -16,26 +16,26 @@ def default_variable():
 
 
 def test_get_name(x_variable):
-    assert(x_variable.name == "x")
+    assert x_variable.name == "x"
 
 
 def test_get_initial_value(x_variable):
-    assert(x_variable.initial_value == approx(5.2))
+    assert x_variable.initial_value == approx(5.2)
 
 
 def test_get_bounds(x_variable):
     bounds = x_variable.get_bounds()
     res = [a == approx(b) for (a, b) in zip([0.5, 12.3], bounds)]
-    assert(all(res))
+    assert all(res)
 
 
 def test_init_current_value(x_variable):
-    assert(x_variable.current_value == approx(5.2))
+    assert x_variable.current_value == approx(5.2)
 
 
 def test_update_current_value(x_variable):
     x_variable.current_value = 78.45
-    assert(x_variable.current_value == approx(78.45))
+    assert x_variable.current_value == approx(78.45)
 
 
 def test_bad_bounds():
@@ -51,4 +51,4 @@ def test_bad_initial_value():
 def test_default_bounds(default_variable):
     bounds = default_variable.get_bounds()
     res = [a == approx(b) for (a, b) in zip([-np.inf, np.inf], bounds)]
-    assert(all(res))
+    assert all(res)

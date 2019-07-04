@@ -4,16 +4,16 @@
 
 import logging
 import logging.config
-from os import path
 from abc import ABC, abstractmethod
+from os import path
 from typing import Callable
 
 import numpy as np
 
-log_conf_path = path.join(path.dirname(path.abspath(__file__)),
-                          "../../logger.cfg")
-logging.config.fileConfig(fname=log_conf_path,
-                          disable_existing_loggers=False)
+log_conf_path = path.join(
+    path.dirname(path.abspath(__file__)), "../../logger.cfg"
+)
+logging.config.fileConfig(fname=log_conf_path, disable_existing_loggers=False)
 logger = logging.getLogger(__file__)
 
 
@@ -57,15 +57,19 @@ class ScalarObjective(ObjectiveBase):
         upper_bound (float): The upper bound of the objective.
 
     """
-    def __init__(self,
-                 name: str,
-                 evaluator: Callable,
-                 lower_bound: float = -np.inf,
-                 upper_bound: float = np.inf) -> None:
+
+    def __init__(
+        self,
+        name: str,
+        evaluator: Callable,
+        lower_bound: float = -np.inf,
+        upper_bound: float = np.inf,
+    ) -> None:
         # Check that the bounds make sense
         if not (lower_bound < upper_bound):
-            msg = ("Lower bound {} should be less than the upper bound "
-                   "{}.").format(lower_bound, upper_bound)
+            msg = (
+                "Lower bound {} should be less than the upper bound " "{}."
+            ).format(lower_bound, upper_bound)
             logger.debug(msg)
             raise ObjectiveError(msg)
 
@@ -113,7 +117,8 @@ class ScalarObjective(ObjectiveBase):
             result = self.__evaluator(decision_vector)
         except (TypeError, IndexError) as e:
             msg = "Bad argument {} supplied to the evaluator: {}".format(
-                str(decision_vector), str(e))
+                str(decision_vector), str(e)
+            )
             logger.debug(msg)
             raise ObjectiveError(msg)
 
