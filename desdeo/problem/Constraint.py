@@ -36,10 +36,10 @@ class ConstraintBase(ABC):
         indicating how severely the constraint has been broken.
 
         Args:
-            decision_vector (np.ndarray): A vector containing the decision
-            variable values.
-            objective_vector (np.ndarray): A vector containing the objective
-            function values.
+            decision_vector (np.ndarray): A decision_vector containing
+            the decision variable values.
+            objective_vector (np.ndarray): A decision_vector containing the
+            objective function values.
 
         Returns:
             float: A float representing how and if the constraing has
@@ -110,10 +110,10 @@ class ScalarConstraint(ConstraintBase):
         a positive value indicates a non-violation.
 
         Args:
-            decision_vector (np.ndarray): A vector containing the values of
-            the decision variables.
-            objective_vector (np.ndarray): A vector containing the values
-            of the objective functions.
+            decision_vector (np.ndarray): A decision_vector containing the
+            values of the decision variables.
+            objective_vector (np.ndarray): A decision_vector containing the
+            values of the objective functions.
 
         Returns:
             float: A float indicating how the constraint holds.
@@ -121,7 +121,7 @@ class ScalarConstraint(ConstraintBase):
         """
         if len(decision_vector) != self.__n_decision_vars:
             msg = (
-                "Decision vector {} is of wrong lenght: "
+                "Decision decision_vector {} is of wrong lenght: "
                 "Should be {}, but is {}"
             ).format(
                 decision_vector, self.__n_decision_vars, len(decision_vector)
@@ -131,7 +131,7 @@ class ScalarConstraint(ConstraintBase):
 
         if len(objective_vector) != self.__n_objective_funs:
             msg = (
-                "Objective vector {} is of wrong lenght:"
+                "Objective decision_vector {} is of wrong lenght:"
                 " Should be {}, but is {}"
             ).format(
                 objective_vector,
@@ -187,22 +187,28 @@ def constraint_function_factory(
 
     if operator == "==":
 
-        def equals(vector: np.ndarray) -> float:
-            return -abs(lhs(vector) - rhs)
+        def equals(
+            decision_vector: np.ndarray, objective_vector: np.ndarray
+        ) -> float:
+            return -abs(lhs(decision_vector, objective_vector) - rhs)
 
         return equals
 
     elif operator == "<":
 
-        def lt(vector: np.ndarray) -> float:
-            return rhs - lhs(vector)
+        def lt(
+            decision_vector: np.ndarray, objective_vector: np.ndarray
+        ) -> float:
+            return rhs - lhs(decision_vector, objective_vector)
 
         return lt
 
     elif operator == ">":
 
-        def gt(vector: np.ndarray) -> float:
-            return lhs(vector) - rhs
+        def gt(
+            decision_vector: np.ndarray, objective_vector: np.ndarray
+        ) -> float:
+            return lhs(decision_vector, objective_vector) - rhs
 
         return gt
 

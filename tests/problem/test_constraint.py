@@ -151,39 +151,39 @@ def test_bad_evaluate_call(
 
 
 def test_constraint_function_factory_equal():
-    cons = constraint_function_factory(lambda x: x[0] + x[1], 10.0, "==")
-    array_1 = np.array([2.5, 7.5])
-    array_2 = np.array([-7.1, 10.2])
+    cons = constraint_function_factory(
+        lambda x, y: x[0] + x[1] + y[0] + y[1], 10.0, "=="
+    )
+    decision_vector = np.array([2.5, 7.5])
+    objective_vector = np.array([-7.1, 10.2])
 
-    res_1 = cons(array_1)
-    res_2 = cons(array_2)
+    res = cons(decision_vector, objective_vector)
 
-    assert res_1 == approx(0.0)
-    assert res_2 == approx(-6.9)
+    assert res == approx(-3.1)
 
 
 def test_constraint_function_factory_lt():
-    cons = constraint_function_factory(lambda x: x[0] + x[1], 5.0, "<")
-    array_1 = np.array([2.5, 7.5])
-    array_2 = np.array([-7.1, 10.2])
+    cons = constraint_function_factory(
+        lambda x, y: x[0] + x[1] + y[0] + y[1], 5.0, "<"
+    )
+    decision_vector = np.array([2.5, 7.5])
+    objective_vector = np.array([-7.1, 10.2])
 
-    res_1 = cons(array_1)
-    res_2 = cons(array_2)
+    res = cons(decision_vector, objective_vector)
 
-    assert res_1 == approx(-5.0)
-    assert res_2 == approx(1.9)
+    assert res == approx(-8.1)
 
 
 def test_constraint_function_factory_gt():
-    cons = constraint_function_factory(lambda x: x[0] + x[1], 9.5, ">")
-    array_1 = np.array([2.5, 7.5])
-    array_2 = np.array([-7.1, 10.2])
+    cons = constraint_function_factory(
+        lambda x, y: x[0] + x[1] + y[0] + y[1], 9.5, ">"
+    )
+    decision_vector = np.array([2.5, 7.5])
+    objective_vector = np.array([-7.1, 10.2])
 
-    res_1 = cons(array_1)
-    res_2 = cons(array_2)
+    res = cons(decision_vector, objective_vector)
 
-    assert res_1 == approx(0.5)
-    assert res_2 == approx(-6.4)
+    assert res == approx(3.6)
 
 
 def test_constraint_function_factory_bad_operator():
