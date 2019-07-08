@@ -188,7 +188,13 @@ class ScalarMOProblem(ProblemBase):
                 corresponding each input vector.
 
         """
+        # Reshape populations with single row to work with the code
+        shape = np.shape(population)
+        if len(shape) == 1:
+            population = np.reshape(population, (1, shape[0]))
+
         (n_rows, n_cols) = np.shape(population)
+
         if n_cols != self.__n_of_variables:
             msg = (
                 "The length of the input vectors does not match the number "
