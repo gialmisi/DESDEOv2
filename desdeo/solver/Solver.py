@@ -1,7 +1,9 @@
 """Define different solvers to solve MOO problems of various kind.
 
 """
-
+import logging
+import logging.config
+from os import path
 import abc
 from abc import abstractmethod
 from typing import Any, Callable, List, Optional, Tuple
@@ -9,7 +11,13 @@ from typing import Any, Callable, List, Optional, Tuple
 import numpy as np
 from scipy.optimize import OptimizeResult, differential_evolution
 
-from desdeo.problem.Problem import ScalarMOProblem
+from desdeo.problem.Problem import ProblemBase
+
+log_conf_path = path.join(
+    path.dirname(path.abspath(__file__)), "../logger.cfg"
+)
+logging.config.fileConfig(fname=log_conf_path, disable_existing_loggers=False)
+logger = logging.getLogger(__file__)
 
 
 class SolverError(Exception):
@@ -27,14 +35,19 @@ class SolverBase(abc.ABC):
     """
 
     @abstractmethod
-    def solve(self, args: Any) -> Any:
+    def solve(self, *args: Any) -> Optional[
+            Tuple[np.ndarray,
+                  Tuple[np.ndarray, np.ndarray]]]:
         """Solves the problem and returns relevant information.
 
         Args:
             *args(Any): Any kind of arguments that are relevant to the solver.
 
         Returns:
-            Any: A solution of the solved problem and possibly auxillary data.
+            Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]: A tuple
+            containing the decision variables as the first element and the
+            evaluation result of the underlaying porblem as the second element.
+
         """
         pass
 
@@ -49,12 +62,12 @@ class WeightingMethodSolver(SolverBase):
 
     """
 
-    def __init__(self, problem: ScalarMOProblem):
-        self.__problem: ScalarMOProblem = problem
+    def __init__(self, problem: ProblemBase):
+        self.__problem: ProblemBase = problem
         self.__weights: np.ndarray = None
 
     @property
-    def problem(self) -> ScalarMOProblem:
+    def problem(self) -> ProblemBase:
         return self.__problem
 
     @property
@@ -108,15 +121,23 @@ class WeightingMethodSolver(SolverBase):
 
         return weighted_sums
 
-    def solve(self, weights: np.ndarray) -> Optional[Tuple[np.ndarray, float]]:
+    def solve(self,
+              weights: np.ndarray) -> Optional[
+                  Tuple[np.ndarray,
+                        Tuple[np.ndarray, np.ndarray]]]:
         """Use differential evolution to solve the weighted sum problem.
 
         Args:
             weights (np.ndarray): Array of weights to weigh each objective in
             the sum.
         Returns:
-            OptimizeResult: The results of the optimization. None, if the
-            optimization if not successful.
+            Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]: A tuple
+            containing the decision variables as the first element and the
+            evaluation result of the underlaying porblem as the second element.
+
+        Note:
+            This method might invoke runtime warnings, which are most likely
+            related to the usage of infinity (np.inf).
 
         """
         self.__weights = weights
@@ -134,9 +155,16 @@ class WeightingMethodSolver(SolverBase):
 
         if results.success:
             decision_variables: np.ndarray = results.x
-            function_value: float = results.fun
 
-            return (decision_variables, function_value)
+            return (decision_variables,
+                    self.__problem.evaluate(decision_variables))
         else:
-            # TODO add logger
+            logger.debug(results.message)
             raise SolverError(results.message)
+
+
+class EpsilonConstraintSolver(object):
+    """Documentation for EpsilonConstraintSolver
+
+    """
+    pass

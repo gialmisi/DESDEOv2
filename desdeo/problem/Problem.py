@@ -36,7 +36,8 @@ class ProblemBase(ABC):
     """
 
     @abstractmethod
-    def evaluate(self, population: np.ndarray) -> np.ndarray:
+    def evaluate(self, population: np.ndarray) -> Tuple[np.ndarray,
+                                                        np.ndarray]:
         """Evaluates the problem using an ensemble of input vectors.
 
         Args:
