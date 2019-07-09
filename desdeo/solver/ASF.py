@@ -4,7 +4,6 @@ functions.
 """
 import abc
 from abc import abstractmethod
-from typing import Any, Optional
 
 import numpy as np
 
@@ -18,10 +17,7 @@ class ASFBase(abc.ABC):
 
     @abstractmethod
     def __call__(
-        self,
-        objective_vector: np.ndarray,
-        reference_point: np.ndarray,
-        args: Optional[Any],
+        self, objective_vector: np.ndarray, reference_point: np.ndarray
     ) -> float:
         """Guarantees that every class deriving from this should be usable like
         a function.
@@ -37,8 +33,8 @@ class ASFBase(abc.ABC):
             float: The result of the ASF function.
 
         Note:
-            The reference point may not always necessarely be feasible, but it's
-            dimensions should match that of the objective vector.
+            The reference point may not always necessarely be feasible, but
+            it's dimensions should match that of the objective vector.
         """
         pass
 
