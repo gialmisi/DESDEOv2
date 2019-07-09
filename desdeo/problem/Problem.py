@@ -36,8 +36,9 @@ class ProblemBase(ABC):
     """
 
     @abstractmethod
-    def evaluate(self, population: np.ndarray) -> Tuple[np.ndarray,
-                                                        np.ndarray]:
+    def evaluate(
+        self, population: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Evaluates the problem using an ensemble of input vectors.
 
         Args:
@@ -50,6 +51,19 @@ class ProblemBase(ABC):
                 values for each input vector.
                 constraints (np.ndarray): The constraint values of the problem
                 corresponding each input vector.
+
+        """
+        pass
+
+    @abstractmethod
+    def get_variable_bounds(self) -> Optional[np.ndarray]:
+        """Return the upper and lower bounds of defined in the problem as a 2D
+        numpy array. Each row represents a variable, the first column
+        represents the lower bounds and the second column the upper bounds.
+
+        Returns:
+            np.ndarray: The upper and lower bounds of the variables present in
+            problem. None, if no bounds can be specified.
 
         """
         pass
@@ -153,17 +167,21 @@ class ScalarMOProblem(ProblemBase):
     def ideal(self) -> float:
         return self.__ideal
 
-    def get_variable_bounds(self) -> List[Tuple[float, float]]:
+    def get_variable_bounds(self) -> Optional[np.ndarray]:
         """Return the upper and lower bounds of each decision variable present
-        in the problem.
+        in the problem as a 2D numpy array. The first column corresponds to the
+        lower bounds of each variable, and the second column to the upper
+        bound.
 
         Returns:
-           list(tuple(float, float)): Lower and upper bounds of each variable
-           as a list of tuples. If undefined variables, return None instead.
+           np.ndarray: Lower and upper bounds of each variable
+           as a 2D numpy array. If undefined variables, return None instead.
 
         """
         if self.__variables is not None:
-            bounds = [var.get_bounds() for var in self.__variables]
+            bounds = np.ndarray((self.n_of_variables, 2))
+            for ind, var in enumerate(self.__variables):
+                bounds[ind] = np.array(var.get_bounds())
             return bounds
         else:
             logger.debug(
@@ -171,6 +189,44 @@ class ScalarMOProblem(ProblemBase):
                 "ScalarMOProblem with no defined variables."
             )
             return None
+
+    def get_variable_names(self) -> List[str]:
+        """Return the variable names of the variables present in the problem in
+        the order they were added.
+
+        Returns:
+            List[str]: Names of the variables in the order they were added.
+
+        """
+        return [var.name for var in self.__variables]
+
+    def get_objective_names(self) -> List[str]:
+        """Return the names of the objectives present in the problem in the
+        order they were added.
+
+        Returns:
+            List[str]: Names of the objectives in the order they were added.
+
+        """
+        return [obj.name for obj in self.__objectives]
+
+    def get_variable_lower_bounds(self) -> np.ndarray:
+        """Return the lower bounds of each variable as a list. The order of the bounds
+        follows the order the variables were added to the problem.
+
+        Returns:
+            np.ndarray: An array with the lower bounds of the variables.
+        """
+        return np.array([var.get_bounds()[0] for var in self.__variables])
+
+    def get_variable_upper_bounds(self) -> np.ndarray:
+        """Return the upper bounds of each variable as a list. The order of the bounds
+        follows the order the variables were added to the problem.
+
+        Returns:
+            np.ndarray: An array with the upper bounds of the variables.
+        """
+        return np.array([var.get_bounds()[1] for var in self.__variables])
 
     def evaluate(
         self, population: np.ndarray

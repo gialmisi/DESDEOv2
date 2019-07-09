@@ -159,5 +159,40 @@ def test_bad_ideal(scalar_objectives, variables, scalar_constraints):
 def test_get_variable_bounds(simple_scalar_moproblem, variables):
     bounds = simple_scalar_moproblem.get_variable_bounds()
 
-    for (fst, snd) in zip(bounds, [var.get_bounds() for var in variables]):
-        assert fst == tuple(map(approx, snd))
+    for ind, bound in enumerate(bounds):
+        assert bound[0] == approx(variables[ind].get_bounds()[0])
+        assert bound[1] == approx(variables[ind].get_bounds()[1])
+
+
+def test_get_variable_names(simple_scalar_moproblem):
+    names = simple_scalar_moproblem.get_variable_names()
+    assert all(
+        [
+            name == expected
+            for (name, expected) in zip(names, ["x", "y", "z", "a"])
+        ]
+    )
+
+
+def test_get_objective_names(simple_scalar_moproblem):
+    names = simple_scalar_moproblem.get_objective_names()
+    assert all(
+        [
+            name == expected
+            for (name, expected) in zip(names, ["f1", "f2", "f3"])
+        ]
+    )
+
+
+def test_get_variable_lower_bounds(simple_scalar_moproblem):
+    bounds = simple_scalar_moproblem.get_variable_lower_bounds()
+    expected = np.array([0.0, -12.0, -20, 10.2])
+
+    assert np.all(np.isclose(bounds, expected))
+
+
+def test_get_variable_upper_bounds(simple_scalar_moproblem):
+    bounds = simple_scalar_moproblem.get_variable_upper_bounds()
+    expected = np.array([10, -5.5, 5.5, 42.5])
+
+    assert np.all(np.isclose(bounds, expected))

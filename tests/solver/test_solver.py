@@ -90,10 +90,9 @@ def test_weighting_solve_ones_weights(WeightedCylinderSolver):
     expected_variables = np.array([5.0, 10.0])
     # Note the quire high absolute tolerance and no relative tolerance.
     # The results vary quire a bit, so a high tolerance was chosen.
-    assert np.all(np.isclose(variables,
-                             expected_variables,
-                             rtol=0.0,
-                             atol=1.e-1))
+    assert np.all(
+        np.isclose(variables, expected_variables, rtol=0.0, atol=1.0e-1)
+    )
 
     assert np.all(np.greater_equal(constraints, 0.0))
 

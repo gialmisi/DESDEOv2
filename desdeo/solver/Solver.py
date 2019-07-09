@@ -1,12 +1,12 @@
 """Define different solvers to solve MOO problems of various kind.
 
 """
+import abc
 import logging
 import logging.config
-from os import path
-import abc
 from abc import abstractmethod
-from typing import Any, Callable, List, Optional, Tuple
+from os import path
+from typing import Any, Callable, Optional, Tuple
 
 import numpy as np
 from scipy.optimize import OptimizeResult, differential_evolution
@@ -35,9 +35,9 @@ class SolverBase(abc.ABC):
     """
 
     @abstractmethod
-    def solve(self, *args: Any) -> Optional[
-            Tuple[np.ndarray,
-                  Tuple[np.ndarray, np.ndarray]]]:
+    def solve(
+        self, args: Any
+    ) -> Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]:
         """Solves the problem and returns relevant information.
 
         Args:
@@ -121,10 +121,9 @@ class WeightingMethodSolver(SolverBase):
 
         return weighted_sums
 
-    def solve(self,
-              weights: np.ndarray) -> Optional[
-                  Tuple[np.ndarray,
-                        Tuple[np.ndarray, np.ndarray]]]:
+    def solve(
+        self, weights: np.ndarray
+    ) -> Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]:
         """Use differential evolution to solve the weighted sum problem.
 
         Args:
@@ -143,7 +142,7 @@ class WeightingMethodSolver(SolverBase):
         self.__weights = weights
 
         func: Callable
-        bounds: List[Tuple[float, float]]
+        bounds: np.ndarray
         polish: bool
         results: OptimizeResult
 
@@ -156,8 +155,10 @@ class WeightingMethodSolver(SolverBase):
         if results.success:
             decision_variables: np.ndarray = results.x
 
-            return (decision_variables,
-                    self.__problem.evaluate(decision_variables))
+            return (
+                decision_variables,
+                self.__problem.evaluate(decision_variables),
+            )
         else:
             logger.debug(results.message)
             raise SolverError(results.message)
@@ -167,4 +168,5 @@ class EpsilonConstraintSolver(object):
     """Documentation for EpsilonConstraintSolver
 
     """
+
     pass
