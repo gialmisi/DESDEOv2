@@ -12,6 +12,7 @@ import numpy as np
 from scipy.optimize import OptimizeResult, differential_evolution
 
 from desdeo.problem.Problem import ProblemBase
+from desdeo.solver.ASF import ASFBase
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"
@@ -53,12 +54,20 @@ class SolverBase(abc.ABC):
 
 
 class WeightingMethodSolver(SolverBase):
-    """A class to represent a solver for solving a ScalarMOProblem using the
+    """A class to represent a solver for solving a problems using the
     weighting method.
 
     Args:
-        problem (ScalarMOProblem): A ScalarMOProblem to be solved using the
-        weighting method.
+        problem (ProblemBase): The underlaying problem obejest with the
+        specifications of the problem to solve.
+        weights (np.ndarray): The weights corresponsing to each objectie in the
+        problem.r
+
+    Attributes:
+        problem (ProblemBase): The underlaying problem obejest with the
+        specifications of the problem to solve.
+        weights (np.ndarray): The weights corresponsing to each objectie in the
+        problem.
 
     """
 
@@ -165,8 +174,67 @@ class WeightingMethodSolver(SolverBase):
 
 
 class EpsilonConstraintSolver(object):
-    """Documentation for EpsilonConstraintSolver
+    """A class to represent a solver for solving porblems using the epsilon
+    constraint method.
+
+    Args:
+        problem (ProblemBase): The underlaying problem obeject with the
+        specifications of the problem to solve
+        epsilons (np.ndarray): The epsilon values to set as the upper limit
+        for each objective when treated as a constraint.
+
+    Attributes:
+        problem (ProblemBase): The underlaying problem obeject with the
+        specifications of the problem to solve
+        epsilons (np.ndarray): The epsilon values to set as the upper limit
+        for each objective when treated as a constraint.
+
+    Note:
+        To be implemented.
 
     """
 
-    pass
+    def __init__(self, problem: ProblemBase, epsilons: np.ndarray):
+        self.__problem: ProblemBase = problem
+        self.__epsilons: np.ndarray = epsilons
+
+    @property
+    def problem(self) -> ProblemBase:
+        return self.__problem
+
+    @property
+    def epsilons(self) -> np.ndarray:
+        return self.__epsilons
+
+    @epsilons.setter
+    def epsilons(self, val: np.ndarray):
+        self.__epsilons = val
+
+    def _evaluator(self, decision_vectors: np.ndarray) -> np.ndarray:
+        pass
+
+    def solve(self, epsilons: np.ndarray):
+        pass
+
+
+class ASFSolver(SolverBase):
+    """A class to represent a solver tha uses the achievement scalarizing
+    method to solve a multiobjective optimization prblem.
+
+    Args:
+        problem (ProblemBase): The underlaying problem obejest with the
+        specifications of the problem to solve.
+
+    Attributes:
+        problem (ProblemBase): The underlaying problem obejest with the
+        specifications of the problem to solve.
+
+    """
+
+    def __init__(self, problem: ProblemBase):
+        self.__problem: ProblemBase = problem
+
+    def solve(
+        self, asf: ASFBase
+    ) -> Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]:
+        pass
