@@ -61,7 +61,7 @@ class WeightingMethodSolver(SolverBase):
         problem (ProblemBase): The underlaying problem obejest with the
         specifications of the problem to solve.
         weights (np.ndarray): The weights corresponsing to each objectie in the
-        problem.r
+        problem.
 
     Attributes:
         problem (ProblemBase): The underlaying problem obejest with the
