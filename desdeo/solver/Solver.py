@@ -33,7 +33,22 @@ class SolverError(Exception):
 class SolverBase(abc.ABC):
     """A base class to define the interface for the various solver classes.
 
+    Args:
+        problem (ProblemBase): The underlaying problem object with the
+        specifications of the problem to solve.
+
+    Attributes:
+        problem (ProblemBase): The underlaying problem object with the
+        specifications of the problem to solve.
+
     """
+
+    def __init__(self, problem: ProblemBase):
+        self.__problem = problem
+
+    @property
+    def problem(self) -> ProblemBase:
+        return self.__problem
 
     @abstractmethod
     def solve(
@@ -58,13 +73,13 @@ class WeightingMethodSolver(SolverBase):
     weighting method.
 
     Args:
-        problem (ProblemBase): The underlaying problem obejest with the
+        problem (ProblemBase): The underlaying problem object with the
         specifications of the problem to solve.
         weights (np.ndarray): The weights corresponsing to each objectie in the
         problem.
 
     Attributes:
-        problem (ProblemBase): The underlaying problem obejest with the
+        problem (ProblemBase): The underlaying problem object with the
         specifications of the problem to solve.
         weights (np.ndarray): The weights corresponsing to each objectie in the
         problem.
@@ -72,12 +87,8 @@ class WeightingMethodSolver(SolverBase):
     """
 
     def __init__(self, problem: ProblemBase):
-        self.__problem: ProblemBase = problem
-        self.__weights: np.ndarray = None
-
-    @property
-    def problem(self) -> ProblemBase:
-        return self.__problem
+        super().__init__(problem)
+        self.__weights: np.ndarray
 
     @property
     def weights(self) -> np.ndarray:
@@ -112,7 +123,7 @@ class WeightingMethodSolver(SolverBase):
         """
         objective_vectors: np.ndarray
         constraint_vectors: np.ndarray
-        objective_vectors, constraint_vectors = self.__problem.evaluate(
+        objective_vectors, constraint_vectors = self.problem.evaluate(
             decision_vectors
         )
         weighted_sums = np.zeros(len(objective_vectors))
@@ -156,7 +167,7 @@ class WeightingMethodSolver(SolverBase):
         results: OptimizeResult
 
         func = self._evaluator
-        bounds = self.__problem.get_variable_bounds()
+        bounds = self.problem.get_variable_bounds()
         polish = True
 
         results = differential_evolution(func, bounds, polish=polish)
@@ -166,14 +177,14 @@ class WeightingMethodSolver(SolverBase):
 
             return (
                 decision_variables,
-                self.__problem.evaluate(decision_variables),
+                self.problem.evaluate(decision_variables),
             )
         else:
             logger.debug(results.message)
             raise SolverError(results.message)
 
 
-class EpsilonConstraintSolver(object):
+class EpsilonConstraintSolver(SolverBase):
     """A class to represent a solver for solving porblems using the epsilon
     constraint method.
 
@@ -195,12 +206,8 @@ class EpsilonConstraintSolver(object):
     """
 
     def __init__(self, problem: ProblemBase, epsilons: np.ndarray):
-        self.__problem: ProblemBase = problem
+        super().__init__(problem)
         self.__epsilons: np.ndarray = epsilons
-
-    @property
-    def problem(self) -> ProblemBase:
-        return self.__problem
 
     @property
     def epsilons(self) -> np.ndarray:
@@ -222,19 +229,76 @@ class ASFSolver(SolverBase):
     method to solve a multiobjective optimization prblem.
 
     Args:
-        problem (ProblemBase): The underlaying problem obejest with the
+        problem (ProblemBase): The underlaying problem object with the
         specifications of the problem to solve.
 
     Attributes:
-        problem (ProblemBase): The underlaying problem obejest with the
+        problem (ProblemBase): The underlaying problem object with the
         specifications of the problem to solve.
 
     """
 
     def __init__(self, problem: ProblemBase):
-        self.__problem: ProblemBase = problem
+        super().__init__(problem)
+        self.__asf: ASFBase
+        self.__reference_point: np.ndarray
+
+    @property
+    def asf(self) -> ASFBase:
+        return self.__asf
+
+    @asf.setter
+    def asf(self, val: ASFBase):
+        self.__asf = val
+
+    @property
+    def reference_point(self) -> np.ndarray:
+        return self.__reference_point
+
+    @reference_point.setter
+    def reference_point(self, val: np.ndarray):
+        self.__reference_point = val
+
+    def _evaluator(self, decision_vector: np.ndarray) -> np.ndarray:
+        objective_vectors: np.ndarray
+        constraints: np.ndarray
+        asf_values: np.ndarray
+
+        objective_vectors, constraints = self.problem.evaluate(decision_vector)
+        asf_values = np.zeros(len(objective_vectors))
+
+        for ind, elem in enumerate(objective_vectors):
+            if np.any(constraints[ind] < 0):
+                # suicide mthod for broken constraints
+                asf_values[ind] = np.inf
+            else:
+                asf_values[ind] = self.__asf(elem, self.__reference_point)
+
+        return asf_values
 
     def solve(
-        self, asf: ASFBase
+        self, reference_point: np.ndarray
     ) -> Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]:
-        pass
+        self.__reference_point = reference_point
+
+        func: Callable
+        bounds: np.ndarray
+        polish: bool
+        results: OptimizeResult
+
+        func = self._evaluator
+        bounds = self.problem.get_variable_bounds()
+        polish = True
+
+        results = differential_evolution(func, bounds, polish=polish)
+
+        if results.success:
+            decision_variables: np.ndarray = results.x
+
+            return (
+                decision_variables,
+                self.problem.evaluate(decision_variables),
+            )
+        else:
+            logger.debug(results.message)
+            raise SolverError(results.message)

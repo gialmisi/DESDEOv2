@@ -27,7 +27,9 @@ class ASFBase(abc.ABC):
             values of a MOO problem that was solved with some decision
             variables.
             reference_point(np.ndarray): The reference point used in
-            calculating the value of the ASF.
+            calculating the value of the ASF. If an objective's reference value
+            is set to np.nan, that objective is ignored in the calculation of
+            the ASF.
 
         Returns:
             float: The result of the ASF function.
@@ -69,4 +71,10 @@ class SimpleASF(ASFBase):
     def __call__(
         self, objective_vector: np.ndarray, reference_point: np.ndarray
     ) -> float:
-        return np.max(self.__weights * (objective_vector - reference_point))
+        return np.max(
+            np.where(
+                np.isnan(reference_point),
+                -np.inf,
+                self.__weights * (objective_vector - reference_point),
+            )
+        )

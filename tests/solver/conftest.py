@@ -41,7 +41,7 @@ def CylinderProblem():
     objectives.append(
         ScalarObjective(
             "Surface area",
-            lambda x: -(2 * np.pi * x[0] ** 2 + 2 * x[0] * x[1]),
+            lambda x: -(2 * np.pi * x[0] ** 2 + 2 * np.pi * x[0] * x[1]),
         )
     )
     objectives.append(
