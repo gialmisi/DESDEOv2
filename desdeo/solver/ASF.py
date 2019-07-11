@@ -3,9 +3,24 @@ functions.
 
 """
 import abc
+import logging
+import logging.config
 from abc import abstractmethod
+from os import path
 
 import numpy as np
+
+log_conf_path = path.join(
+    path.dirname(path.abspath(__file__)), "../logger.cfg"
+)
+logging.config.fileConfig(fname=log_conf_path, disable_existing_loggers=False)
+logger = logging.getLogger(__file__)
+
+
+class ASFError(Exception):
+    """Raised when an error related to the ASF classes is encountered.
+
+    """
 
 
 class ASFBase(abc.ABC):
@@ -43,7 +58,6 @@ class ASFBase(abc.ABC):
 
 class SimpleASF(ASFBase):
     """Implements a simple order-representing ASF.
-    TODO: SOURCE!
 
     Args:
         weights (np.ndarray): A weight vector that holds weights. It's
@@ -71,6 +85,26 @@ class SimpleASF(ASFBase):
     def __call__(
         self, objective_vector: np.ndarray, reference_point: np.ndarray
     ) -> float:
+        """Evaluate the simple order-representing ASF.
+
+        Args:
+            objective_vector (np.ndarray): A vector representing a solution in
+            the solution space.
+            reference_point (np.ndarray): A vector representing a reference
+            point in the solution space.
+
+        Note:
+            The shaped of objective_vector and reference_point must match.
+
+        """
+        if not objective_vector.shape == reference_point.shape:
+            msg = (
+                "The dimensions of the objective vector {} and "
+                "reference_point {} do not match."
+            ).format(objective_vector, reference_point)
+            logger.debug(msg)
+            raise ASFError(msg)
+
         return np.max(
             np.where(
                 np.isnan(reference_point),

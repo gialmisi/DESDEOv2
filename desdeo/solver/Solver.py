@@ -22,7 +22,7 @@ logger = logging.getLogger(__file__)
 
 
 class SolverError(Exception):
-    """Raised when an error related to the solver classes in
+    """Raised when an error related to the solver classes is
     encountered.
 
     """
@@ -58,6 +58,7 @@ class SolverBase(abc.ABC):
 
         Args:
             *args(Any): Any kind of arguments that are relevant to the solver.
+            See the solvers for further details.
 
         Returns:
             Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]: A tuple
@@ -99,15 +100,12 @@ class WeightingMethodSolver(SolverBase):
         self.__weights = val
 
     def _evaluator(self, decision_vectors: np.ndarray) -> np.ndarray:
-        """A helper function to transform the output of the ScalarMOProblem
-        to weighted sum.
+        """A helper function to transform the output of the MOO problem
+        to a weighted sum.
 
         Args:
             decision_vectors (np.ndarray): An array of arrays representing
-            decision variable values to evaluate the ScalarMOProblem.
-            weight_vector (np.ndarray): An array of weights to be used in the
-            weighted sum returned by this function. It's length should match
-            the number of objectives defined in ScalarMOProblem.
+            decision variable values to evaluate the MOO problem.
 
         Returns:
             np.ndarray: An array with the weighted sums corresponding to
@@ -149,10 +147,12 @@ class WeightingMethodSolver(SolverBase):
         Args:
             weights (np.ndarray): Array of weights to weigh each objective in
             the sum.
+
         Returns:
             Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]: A tuple
             containing the decision variables as the first element and the
-            evaluation result of the underlaying porblem as the second element.
+            evaluation results of the underlaying porblem as the second
+            element.
 
         Note:
             This method might invoke runtime warnings, which are most likely
@@ -226,7 +226,7 @@ class EpsilonConstraintSolver(SolverBase):
 
 class ASFSolver(SolverBase):
     """A class to represent a solver tha uses the achievement scalarizing
-    method to solve a multiobjective optimization prblem.
+    method to solve a multiobjective optimization problem.
 
     Args:
         problem (ProblemBase): The underlaying problem object with the
@@ -260,6 +260,24 @@ class ASFSolver(SolverBase):
         self.__reference_point = val
 
     def _evaluator(self, decision_vector: np.ndarray) -> np.ndarray:
+        """A helper function to express the original problem as an ASF
+           problem.
+
+        Args:
+            decision_vectors (np.ndarray): An array of arrays representing the
+            decision variable values to evaluate the underlaying MOO problem.
+
+        Returns:
+            np.ndarray: An array of the ASF problem values corresponding to
+            each decision variable vector.
+
+        Note:
+            Requires an achievement scalarizing function to be defined and set
+            to the ASFSolver object. See ASF.py for available functions and
+            further details.
+
+        """
+
         objective_vectors: np.ndarray
         constraints: np.ndarray
         asf_values: np.ndarray
@@ -269,7 +287,7 @@ class ASFSolver(SolverBase):
 
         for ind, elem in enumerate(objective_vectors):
             if np.any(constraints[ind] < 0):
-                # suicide mthod for broken constraints
+                # suicide method for broken constraints
                 asf_values[ind] = np.inf
             else:
                 asf_values[ind] = self.__asf(elem, self.__reference_point)
@@ -279,6 +297,18 @@ class ASFSolver(SolverBase):
     def solve(
         self, reference_point: np.ndarray
     ) -> Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]:
+        """Use differential evolution to solve the ASF problem.
+
+        Args:
+            reference_point (np.ndarray): An array representing the reference
+            point in the objective function space used the is ASF.
+        Returns:
+            Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]: A tuple
+            containing the decision variables as the first element and the
+            evaluation results of the underlaying porblem as the second
+            element.
+
+        """
         self.__reference_point = reference_point
 
         func: Callable

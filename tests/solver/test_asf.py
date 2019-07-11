@@ -1,7 +1,8 @@
 import numpy as np
+import pytest
 from pytest import approx
 
-from desdeo.solver.ASF import SimpleASF
+from desdeo.solver.ASF import ASFError, SimpleASF
 
 
 def test_simple_init():
@@ -38,3 +39,23 @@ def test_simple_call():
     res = simple_asf(objective, reference)
 
     assert res == approx(12.0)
+
+
+def test_simple_non_matching_shapes():
+    weights = np.ones(3)
+    simple_asf = SimpleASF(weights)
+
+    objective = np.array([1, 1, 2.5])
+    reference = np.array([0.5, -2, 1.5])
+
+    objective2d = np.array([[1, 1, 1], [2, 2, 2]])
+    reference2d = np.array([[1, 1, 1], [2, 2, 2]])
+
+    with pytest.raises(ASFError):
+        simple_asf(objective[:1], reference)
+
+    with pytest.raises(ASFError):
+        simple_asf(objective2d, reference)
+
+    with pytest.raises(ASFError):
+        simple_asf(objective, reference2d)
