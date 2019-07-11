@@ -5,7 +5,7 @@ problems.
 
 import logging
 import logging.config
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 from os import path
 from typing import List, Optional, Tuple
 
@@ -55,6 +55,11 @@ class ProblemBase(ABC):
         """
         pass
 
+    @abstractproperty
+    @property
+    def n_of_objectives(self) -> int:
+        pass
+
     @abstractmethod
     def get_variable_bounds(self) -> Optional[np.ndarray]:
         """Return the upper and lower bounds of defined in the problem as a 2D
@@ -90,6 +95,10 @@ class ScalarMOProblem(ProblemBase):
         n_of_constraints (int): The number of constraints in the problem.
         nadir (np.ndarray): The nadir point of the problem.
         ideal (np.ndarray): The ideal point of the problem.
+        objectives (List[ScalarObjective]): A list containing the objectives of
+        the problem.
+        constraints (List[ScalarConstraint]): A list conatining the constraints
+        of the problem.
 
     """
 
@@ -166,6 +175,14 @@ class ScalarMOProblem(ProblemBase):
     @property
     def ideal(self) -> float:
         return self.__ideal
+
+    @property
+    def objectives(self) -> List[ScalarObjective]:
+        return self.__objectives
+
+    @property
+    def constraint(self) -> List[ScalarConstraint]:
+        return self.__constraints
 
     def get_variable_bounds(self) -> Optional[np.ndarray]:
         """Return the upper and lower bounds of each decision variable present

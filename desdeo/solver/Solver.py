@@ -332,3 +332,91 @@ class ASFSolver(SolverBase):
         else:
             logger.debug(results.message)
             raise SolverError(results.message)
+
+
+class IdealAndNadirPointSolver(SolverBase):
+    """Calculates the ideal and utopian points for a given problem. The ideal
+    point is calculated by minimizing each function separately.
+
+    Args:
+        problem (ProblemBase): The underlaying problem object with the
+        specifications of the problem to solve.
+
+    Attributes:
+        problem (ProblemBase): The underlaying problem object with the
+        specifications of the problem to solve.
+
+    """
+
+    def __init__(self, problem: ProblemBase):
+        super().__init__(problem)
+
+    def _evaluator(
+        self, decision_vector: np.ndarray, objective_index: int
+    ) -> float:
+        """A helper function to evaluate the problem and return the value of
+        the specified objective.
+
+        Arguments:
+            decision_vector (np.ndarray): The decision variables to evaluate
+            the problem with.
+            objective_index (int): The index of the objective whose value is to
+            returned.
+
+        Returns:
+            float: The value of the specified objective function.
+
+        """
+        objective_vals, constraint_vals = self.problem.evaluate(
+            decision_vector
+        )
+        if np.any(constraint_vals < 0):
+            return np.inf
+        else:
+            return objective_vals[:, objective_index]
+
+    def solve(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Calculate the ideal and estimate of the nadir point for the MOO
+        problem using a pay-off table.
+
+        Returns:
+            Tuple containing:
+                np.ndarray: The ideal point of the MOO problem.
+                np.ndarray: The (estimate) of the nadir point of the problem.
+
+        Note:
+            The nadir point if an estimate, and therefore might be a bad
+            representation of the real nadir point.
+        """
+        pay_off_table: np.ndarray
+        func: Callable
+        args: Tuple[int]
+        tol: float
+        bounds: np.ndarray
+        polish: bool
+        results: OptimizeResult
+
+        pay_off_table = np.zeros(
+            (self.problem.n_of_objectives, self.problem.n_of_objectives)
+        )
+        func = self._evaluator
+        tol = 0.0001  # We want an accurate ideal point
+        bounds = self.problem.get_variable_bounds()
+        polish = True
+
+        for ind in range(self.problem.n_of_objectives):
+            args = (ind,)
+            results = differential_evolution(
+                func, bounds, args=args, tol=tol, polish=polish
+            )
+
+            if results.success:
+                pay_off_table[ind], _ = self.problem.evaluate(results.x)
+            else:
+                logger.debug(results.message)
+                raise SolverError(results.message)
+
+        # The ideal point can be found on the diagonal of the PO-table,
+        # and an estimate of the nadir by taking the maximun value of each
+        # column.
+        return pay_off_table.diagonal(), np.amax(pay_off_table, axis=0)
