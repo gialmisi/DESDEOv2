@@ -3,21 +3,21 @@ import pytest
 from pytest import approx
 
 from desdeo.solver.ASF import SimpleASF
-from desdeo.solver.Solver import (
-    ASFSolver,
-    IdealAndNadirPointSolver,
-    WeightingMethodSolver,
+from desdeo.solver.PointSolver import IdealAndNadirPointSolver
+from desdeo.solver.ScalarSolver import (
+    ASFScalarSolver,
+    WeightingMethodScalarSolver,
 )
 
 
 @pytest.fixture
 def WeightedCylinderSolver(CylinderProblem):
-    return WeightingMethodSolver(CylinderProblem)
+    return WeightingMethodScalarSolver(CylinderProblem)
 
 
 @pytest.fixture
 def SimpleASFCylinderSolver(CylinderProblem):
-    return ASFSolver(CylinderProblem)
+    return ASFScalarSolver(CylinderProblem)
 
 
 @pytest.fixture
@@ -258,8 +258,10 @@ def test_ideal_and_nadir_point_evaluator(CylinderProblem):
 @pytest.mark.snipe
 def test_ideal_and_nadir_point_solver(CylinderProblem):
     solver = IdealAndNadirPointSolver(CylinderProblem)
-    res, nadir = solver.solve()
-    print(nadir)
-    expected = np.array([785.476703213788, -2945.321652556771, 0.0])
+    ideal, nadir = solver.solve()
+    expected_ideal = np.array([785.476703213788, -2945.321652556771, 0.0])
 
-    assert np.all(np.isclose(res, expected, rtol=0, atol=0.5))
+    print(ideal)
+    print(nadir)
+    assert np.all(np.isclose(ideal, expected_ideal, rtol=0, atol=0.5))
+    assert np.all(np.greater(nadir, ideal))

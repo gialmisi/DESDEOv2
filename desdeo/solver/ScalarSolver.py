@@ -1,4 +1,4 @@
-"""Define different solvers to solve MOO problems of various kind.
+"""Define different solvers that solve a scalarized version of a MOO problem.
 
 """
 import abc
@@ -21,7 +21,7 @@ logging.config.fileConfig(fname=log_conf_path, disable_existing_loggers=False)
 logger = logging.getLogger(__file__)
 
 
-class SolverError(Exception):
+class ScalarSolverError(Exception):
     """Raised when an error related to the solver classes is
     encountered.
 
@@ -30,8 +30,9 @@ class SolverError(Exception):
     pass
 
 
-class SolverBase(abc.ABC):
-    """A base class to define the interface for the various solver classes.
+class ScalarSolverBase(abc.ABC):
+    """A base class to define the interface for the various solvers that solve
+    a scalarized version of the original MOO problem.
 
     Args:
         problem (ProblemBase): The underlaying problem object with the
@@ -49,6 +50,10 @@ class SolverBase(abc.ABC):
     @property
     def problem(self) -> ProblemBase:
         return self.__problem
+
+    @problem.setter
+    def problem(self, val: ProblemBase):
+        self.__problem = val
 
     @abstractmethod
     def solve(
@@ -69,7 +74,7 @@ class SolverBase(abc.ABC):
         pass
 
 
-class WeightingMethodSolver(SolverBase):
+class WeightingMethodScalarSolver(ScalarSolverBase):
     """A class to represent a solver for solving a problems using the
     weighting method.
 
@@ -181,10 +186,10 @@ class WeightingMethodSolver(SolverBase):
             )
         else:
             logger.debug(results.message)
-            raise SolverError(results.message)
+            raise ScalarSolverError(results.message)
 
 
-class EpsilonConstraintSolver(SolverBase):
+class EpsilonConstraintScalarSolver(ScalarSolverBase):
     """A class to represent a solver for solving porblems using the epsilon
     constraint method.
 
@@ -224,7 +229,7 @@ class EpsilonConstraintSolver(SolverBase):
         pass
 
 
-class ASFSolver(SolverBase):
+class ASFScalarSolver(ScalarSolverBase):
     """A class to represent a solver tha uses the achievement scalarizing
     method to solve a multiobjective optimization problem.
 
@@ -273,8 +278,8 @@ class ASFSolver(SolverBase):
 
         Note:
             Requires an achievement scalarizing function to be defined and set
-            to the ASFSolver object. See ASF.py for available functions and
-            further details.
+            to the ASFScalarSolver object. See ASF.py for available functions
+            and further details.
 
         """
 
@@ -331,92 +336,4 @@ class ASFSolver(SolverBase):
             )
         else:
             logger.debug(results.message)
-            raise SolverError(results.message)
-
-
-class IdealAndNadirPointSolver(SolverBase):
-    """Calculates the ideal and utopian points for a given problem. The ideal
-    point is calculated by minimizing each function separately.
-
-    Args:
-        problem (ProblemBase): The underlaying problem object with the
-        specifications of the problem to solve.
-
-    Attributes:
-        problem (ProblemBase): The underlaying problem object with the
-        specifications of the problem to solve.
-
-    """
-
-    def __init__(self, problem: ProblemBase):
-        super().__init__(problem)
-
-    def _evaluator(
-        self, decision_vector: np.ndarray, objective_index: int
-    ) -> float:
-        """A helper function to evaluate the problem and return the value of
-        the specified objective.
-
-        Arguments:
-            decision_vector (np.ndarray): The decision variables to evaluate
-            the problem with.
-            objective_index (int): The index of the objective whose value is to
-            returned.
-
-        Returns:
-            float: The value of the specified objective function.
-
-        """
-        objective_vals, constraint_vals = self.problem.evaluate(
-            decision_vector
-        )
-        if np.any(constraint_vals < 0):
-            return np.inf
-        else:
-            return objective_vals[:, objective_index]
-
-    def solve(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Calculate the ideal and estimate of the nadir point for the MOO
-        problem using a pay-off table.
-
-        Returns:
-            Tuple containing:
-                np.ndarray: The ideal point of the MOO problem.
-                np.ndarray: The (estimate) of the nadir point of the problem.
-
-        Note:
-            The nadir point if an estimate, and therefore might be a bad
-            representation of the real nadir point.
-        """
-        pay_off_table: np.ndarray
-        func: Callable
-        args: Tuple[int]
-        tol: float
-        bounds: np.ndarray
-        polish: bool
-        results: OptimizeResult
-
-        pay_off_table = np.zeros(
-            (self.problem.n_of_objectives, self.problem.n_of_objectives)
-        )
-        func = self._evaluator
-        tol = 0.0001  # We want an accurate ideal point
-        bounds = self.problem.get_variable_bounds()
-        polish = True
-
-        for ind in range(self.problem.n_of_objectives):
-            args = (ind,)
-            results = differential_evolution(
-                func, bounds, args=args, tol=tol, polish=polish
-            )
-
-            if results.success:
-                pay_off_table[ind], _ = self.problem.evaluate(results.x)
-            else:
-                logger.debug(results.message)
-                raise SolverError(results.message)
-
-        # The ideal point can be found on the diagonal of the PO-table,
-        # and an estimate of the nadir by taking the maximun value of each
-        # column.
-        return pay_off_table.diagonal(), np.amax(pay_off_table, axis=0)
+            raise ScalarSolverError(results.message)
