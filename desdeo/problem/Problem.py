@@ -5,7 +5,7 @@ problems.
 
 import logging
 import logging.config
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 from os import path
 from typing import List, Optional, Tuple
 
@@ -55,9 +55,24 @@ class ProblemBase(ABC):
         """
         pass
 
-    @abstractproperty
     @property
     def n_of_objectives(self) -> int:
+        pass
+
+    @property
+    def ideal(self):
+        pass
+
+    @ideal.setter
+    def ideal(self, val):
+        pass
+
+    @property
+    def nadir(self):
+        pass
+
+    @nadir.setter
+    def nadir(self, val):
         pass
 
     @abstractmethod
@@ -169,12 +184,20 @@ class ScalarMOProblem(ProblemBase):
         return self.__n_of_constraints
 
     @property
-    def nadir(self) -> float:
+    def nadir(self) -> np.ndarray:
         return self.__nadir
 
+    @nadir.setter
+    def nadir(self, val: np.ndarray):
+        self.__nadir = val
+
     @property
-    def ideal(self) -> float:
+    def ideal(self) -> np.ndarray:
         return self.__ideal
+
+    @ideal.setter
+    def ideal(self, val: np.ndarray):
+        self.__ideal = val
 
     @property
     def objectives(self) -> List[ScalarObjective]:

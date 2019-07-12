@@ -11,6 +11,51 @@ from desdeo.problem.Variable import Variable
 
 
 @pytest.fixture
+def RiverPollutionProblem():
+    """Return the river pollution problem as defined in `Miettinen 2010`_
+
+    .. _Miettinen 2010:
+        Miettinen, K.; Eskelinen, P.; Ruiz, F. & Luque, M.
+        NAUTILUS method: An interactive technique in multiobjective
+        optimization based on the nadir point
+        Europen Joural of Operational Research, 2010, 206, 426-434
+
+    """
+    # Variables
+    variables = []
+    variables.append(Variable("x_1", 0.5, 0.3, 1.0))
+    variables.append(Variable("x_2", 0.5, 0.3, 1.0))
+
+    # Objectives
+    objectives = []
+    objectives.append(ScalarObjective("f_1", lambda x: -4.07 - 2.27 * x[0]))
+
+    objectives.append(
+        ScalarObjective(
+            "f_2",
+            lambda x: -2.60
+            - 0.03 * x[0]
+            - 0.02 * x[1]
+            - 0.001 / (1.39 - x[0] ** 2)
+            - 0.30 / (1.39 - x[1] ** 2),
+        )
+    )
+
+    objectives.append(
+        ScalarObjective("f_3", lambda x: -8.21 + 0.71 / (1.09 - x[0] ** 2))
+    )
+
+    objectives.append(
+        ScalarObjective("f_3", lambda x: -0.96 + 0.96 / (1.09 - x[1] ** 2))
+    )
+
+    # problem
+    problem = ScalarMOProblem(objectives, variables, [])
+
+    return problem
+
+
+@pytest.fixture
 def CylinderProblem():
     """Return a simple cylinder ScalarMOProblem.
 

@@ -73,7 +73,7 @@ class IdealAndNadirPointSolver(PointSolverBase):
         objective_vals, constraint_vals = self.__problem.evaluate(
             decision_vector
         )
-        if np.any(constraint_vals < 0):
+        if constraint_vals is not None and np.any(constraint_vals < 0):
             return np.inf
         else:
             return objective_vals[:, objective_index]
