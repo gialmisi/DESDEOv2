@@ -4,7 +4,6 @@
 
 import abc
 from abc import abstractmethod
-from typing import Any, Dict
 
 from desdeo.problem.Problem import ProblemBase
 
@@ -43,7 +42,7 @@ class InteractiveMethodBase(abc.ABC):
         self.__problem = val
 
     @abstractmethod
-    def initialize(self, initialization_parameters: Dict[str, Any]):
+    def initialize(self):
         """Initializes the method.
 
         Arguments:
