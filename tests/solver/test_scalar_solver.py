@@ -232,3 +232,18 @@ def test_asf_solve_reference_pareto(SimpleASFCylinderSolver):
     assert variables[0] == approx(5.0, abs=1e-3)
     assert variables[1] == approx(10.0, abs=1e-3)
     assert np.all(np.greater_equal(constraints, 0))
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_change_asf_parameters(SimpleASFCylinderSolver):
+    weights = np.array([1, 1, 1])
+    solver = SimpleASFCylinderSolver
+    asf = SimpleASF(weights)
+    solver.asf = asf
+
+    before = solver.asf.weights
+    asf.weights = np.array([2, 2, 2])
+    after = solver.asf.weights
+
+    assert np.all(np.isclose(after, np.array([2, 2, 2])))
+    assert np.all(np.not_equal(before, after))

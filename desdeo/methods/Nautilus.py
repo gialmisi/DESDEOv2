@@ -15,7 +15,9 @@ from desdeo.methods.InteractiveMethod import (
     InteractiveMethodError,
 )
 from desdeo.problem.Problem import ProblemBase
+from desdeo.solver.ASF import ReferencePointASF
 from desdeo.solver.PointSolver import IdealAndNadirPointSolver
+from desdeo.solver.ScalarSolver import ASFScalarSolver
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"
@@ -61,18 +63,32 @@ class Nautilus(InteractiveMethodBase):
                 Nautilus.preference_percentages.fset,  # type: ignore
             ),
         ]
+        # Used to calculate the utopian point from the ideal point
+        self.__epsilon: float = 0.0
         self.__n_of_iterations: int = 0
         self.__current_iteration: int = 0
         self.__iterations_left: int = 0
         self.__lower_bound: np.ndarray = None
         self.__upper_bound: np.ndarray = None
         self.__current_iteration_point: np.ndarray = None
+        self.__reference_point: np.ndarray = None
         self.__iteration_points: List[np.ndarray] = []
         self.__preference_index_set: np.ndarray = None
-        self.__preference_pergentages: np.ndarray = None
+        self.__preference_percentages: np.ndarray = None
         self.__preferential_factors: np.ndarray = np.zeros(
             self.problem.n_of_objectives
         )
+        self.__scalar_solver: ASFScalarSolver = ASFScalarSolver(self.problem)
+        self.__asf: ReferencePointASF = ReferencePointASF(None, None, None)
+        self.__scalar_solver.asf = self.__asf
+
+    @property
+    def epsilon(self) -> float:
+        return self.__epsilon
+
+    @epsilon.setter
+    def epsilon(self, val: float):
+        self.__epsilon = val
 
     @property
     def n_of_iterations(self) -> int:
@@ -180,6 +196,22 @@ class Nautilus(InteractiveMethodBase):
     def preferential_factors(self, val: np.ndarray):
         self.__preferential_factors = val
 
+    @property
+    def scalar_solver(self) -> ASFScalarSolver:
+        return self.__scalar_solver
+
+    @scalar_solver.setter
+    def scalar_solver(self, val: ASFScalarSolver):
+        self.__scalar_solver = val
+
+    @property
+    def asf(self) -> ReferencePointASF:
+        return self.__asf
+
+    @asf.setter
+    def asf(self, val: ReferencePointASF):
+        self.__asf = val
+
     def _parse_parameters(
         self,
         parameters: Dict[str, Any],
@@ -285,6 +317,9 @@ class Nautilus(InteractiveMethodBase):
         self.__iterations_left = self.n_of_iterations
         self.__current_iteration = 1
 
+        self.asf.nadir_point = self.problem.nadir
+        self.asf.utopian_point = self.problem.ideal - self.epsilon
+
         return self.__current_iteration_point
 
     def iterate(
@@ -293,6 +328,13 @@ class Nautilus(InteractiveMethodBase):
         index_set: np.ndarray = None,
         percentages: np.ndarray = None,
     ) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+        """Iterate once according to the user preference.
+
+        Note:
+            If both the relative importance and percentages are defined,
+            percentages are used.
+
+        """
         if preference_information is not None:
             parameters_set = self._parse_parameters(
                 preference_information, self.__preference_requirements
@@ -317,7 +359,7 @@ class Nautilus(InteractiveMethodBase):
                 # percentages given
                 self.preference_percentages = percentages
             else:
-                # percentages not given
+                # percentages not given, use even percentages
                 percentages = (
                     100
                     * np.ones(self.problem.n_of_objectives)
@@ -327,18 +369,25 @@ class Nautilus(InteractiveMethodBase):
 
             used_preference = "Percentages"
 
+        # Calculate the preferential factors
         if used_preference == "Percentages":
             # use percentages to calcualte the new iteration point
             delta_q = self.preference_percentages / 100
             self.preferential_factors = 1 / (
-                delta_q * (self.problem.nadir - (self.problem.ideal - 0.1))
+                delta_q
+                * (self.problem.nadir - (self.problem.ideal - self.__epsilon))
             )
 
         elif used_preference == "Relative importance":
             # Use the relative importance to calcualte the new points
+            print(self.preference_index_set)
             for (i, r) in enumerate(self.preference_index_set):
                 self.preferential_factors[i] = 1 / (
-                    r * (self.problem.nadir[i] - (self.problem.ideal[i] - 0.1))
+                    r
+                    * (
+                        self.problem.nadir[i]
+                        - (self.problem.ideal[i] - self.__epsilon)
+                    )
                 )
 
         else:
@@ -346,7 +395,16 @@ class Nautilus(InteractiveMethodBase):
             logger.debug(msg)
             raise InteractiveMethodError(msg)
 
-        return (np.zeros(4), (np.zeros(4), np.zeros(4)))
+        # set the current iteration point as the reference point
+        self.__reference_point = self.__current_iteration_point
+
+        # solve the ASF
+        # set the preferential factors in the underlaying asf
+        self.asf.preferential_factors = self.preferential_factors
+
+        self.scalar_solver.solve(self.__reference_point)
+
+        return (1, (1, 1))
 
     def interact(self):
         pass

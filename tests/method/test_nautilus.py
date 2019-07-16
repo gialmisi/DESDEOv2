@@ -119,11 +119,10 @@ def test_nautilus_percentage_setter(RiverPollutionProblem):
         method.preference_percentages = np.array([25, 20, 50, 25])
 
 
-def test_nautilus_iterate_preference(RiverPollutionProblem):
-    problem = RiverPollutionProblem
-    problem.ideal = np.array([0.2, 0.3, 0.1, 0.5])
-    problem.nadir = np.array([20, 30, 10, 50])
-    method = Nautilus(problem)
+def test_nautilus_iterate_preference(NautilusInitializedRiver):
+    method = NautilusInitializedRiver
+    method.problem.ideal = np.array([0.2, 0.3, 0.1, 0.5])
+    method.problem.nadir = np.array([20, 30, 10, 50])
 
     # test dict, relative
     pref_dict_rel = {"Relative importance": np.array([1, 1, 2, 3])}
@@ -164,6 +163,7 @@ def test_nautilus_iterate_index_set(RiverPollutionProblem):
     problem.ideal = np.array([0.2, 0.3, 0.1, 0.5])
     problem.nadir = np.array([20, 30, 10, 50])
     method = Nautilus(problem)
+    method.epsilon = 0.1
 
     method.initialize()
     method.iterate(index_set=np.array([1, 2, 2, 4]))
@@ -181,6 +181,7 @@ def test_nautilus_iterate_percentages(RiverPollutionProblem):
     problem.ideal = np.array([0.2, 0.3, 0.1, 0.5])
     problem.nadir = np.array([20, 30, 10, 50])
     method = Nautilus(problem)
+    method.epsilon = 0.1
 
     method.initialize()
     method.iterate(percentages=np.array([20, 25, 15, 40]))
@@ -191,3 +192,13 @@ def test_nautilus_iterate_percentages(RiverPollutionProblem):
     assert mu[1] == approx(1 / ((25 / 100) * (30 - (0.3 - 0.1))))
     assert mu[2] == approx(1 / ((15 / 100) * (10 - (0.1 - 0.1))))
     assert mu[3] == approx(1 / ((40 / 100) * (50 - (0.5 - 0.1))))
+
+
+@pytest.mark.snipe
+def test_nautilus_iterate_first_point(NautilusInitializedRiver):
+    method = NautilusInitializedRiver
+    (var, (obj, cons)) = method.iterate(index_set=np.array([2, 2, 1, 1]))
+
+    print(obj)
+    print(var)
+    # WIP

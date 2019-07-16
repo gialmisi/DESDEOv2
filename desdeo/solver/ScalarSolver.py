@@ -290,8 +290,8 @@ class ASFScalarSolver(ScalarSolverBase):
         objective_vectors, constraints = self.problem.evaluate(decision_vector)
         asf_values = np.zeros(len(objective_vectors))
 
-        for ind, elem in enumerate(objective_vectors):
-            if np.any(constraints[ind] < 0):
+        for (ind, elem) in enumerate(objective_vectors):
+            if (constraints is not None) and (np.any(constraints[ind] < 0)):
                 # suicide method for broken constraints
                 asf_values[ind] = np.inf
             else:
@@ -310,22 +310,35 @@ class ASFScalarSolver(ScalarSolverBase):
         Returns:
             Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]: A tuple
             containing the decision variables as the first element and the
-            evaluation results of the underlaying porblem as the second
+            evaluation results of the underlaying problem as the second
             element.
 
         """
         self.__reference_point = reference_point
 
         func: Callable
+        tol: float
+        popsize: int
+        maxiter: int
         bounds: np.ndarray
         polish: bool
         results: OptimizeResult
 
         func = self._evaluator
+        tol = 0.0000001
+        popsize = 10
+        maxiter = 500000
         bounds = self.problem.get_variable_bounds()
         polish = True
 
-        results = differential_evolution(func, bounds, polish=polish)
+        results = differential_evolution(
+            func,
+            bounds,
+            tol=tol,
+            popsize=popsize,
+            polish=polish,
+            maxiter=maxiter,
+        )
 
         if results.success:
             decision_variables: np.ndarray = results.x

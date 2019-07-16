@@ -112,3 +112,95 @@ class SimpleASF(ASFBase):
                 self.__weights * (objective_vector - reference_point),
             )
         )
+
+
+class ReferencePointASF(ASFBase):
+    """Uses a reference point q and preferenial factors to scalarize a MOO problem.
+    Defined in `Miettinen 2010`_ equation (2).
+
+    Arguments:
+        preferential_factors (np.ndarray): The preferential factors.
+        nadir_point (np.ndarray): The nadir point of the MOO problem to be
+        scalarized.
+        utopian_point (np.ndarray): The utopian point of the MOO problem to be
+        scalarized.
+        roo (float): A small number to be used to scale the sm factor in the
+        ASF. Defaults to 0.1.
+
+    .. _Miettinen 2010:
+        Miettinen, K.; Eskelinen, P.; Ruiz, F. & Luque, M.
+        NAUTILUS method: An interactive technique in multiobjective
+        optimization based on the nadir point
+        Europen Joural of Operational Research, 2010, 206, 426-434
+
+    """
+
+    def __init__(
+        self,
+        preferential_factors: np.ndarray,
+        nadir_point: np.ndarray,
+        utopian_point: np.ndarray,
+        roo: float = 0.1,
+    ):
+        self.__preferential_factors = preferential_factors
+        self.__nadir_point = nadir_point
+        self.__utopian_point = utopian_point
+        self.__roo = roo
+
+    @property
+    def preferential_factors(self) -> np.ndarray:
+        return self.__preferential_factors
+
+    @preferential_factors.setter
+    def preferential_factors(self, val: np.ndarray):
+        self.__preferential_factors = val
+
+    @property
+    def nadir_point(self) -> np.ndarray:
+        return self.__nadir_point
+
+    @nadir_point.setter
+    def nadir_point(self, val: np.ndarray):
+        self.__nadir_point = val
+
+    @property
+    def utopian_point(self) -> np.ndarray:
+        return self.__utopian_point
+
+    @utopian_point.setter
+    def utopian_point(self, val: np.ndarray):
+        self.__utopian_point = val
+
+    @property
+    def roo(self) -> float:
+        return self.__roo
+
+    @roo.setter
+    def roo(self, val: float):
+        self.__roo = val
+
+    def __call__(
+        self, objective_vector: np.ndarray, reference_point: np.ndarray
+    ) -> float:
+        """The actual implementation of the ASF.
+
+        Arguments:
+            objective_vector (np.ndarray): An objective vector calculated using
+            some decision variables in the decision space of the MOO probelm.
+            reference_point (np.ndarray): Some reference point.
+
+        Returns:
+            float: The value of the ASF.
+
+        """
+        mu = self.__preferential_factors
+        f = objective_vector
+        q = reference_point
+        roo = self.__roo
+        z_nad = self.__nadir_point
+        z_uto = self.__utopian_point
+
+        max_term = np.max(mu * (f - q))
+        sum_term = roo * np.sum((f - q) / (z_nad - z_uto))
+
+        return max_term + sum_term

@@ -36,7 +36,7 @@ def RiverPollutionProblem():
             lambda x: -2.60
             - 0.03 * x[0]
             - 0.02 * x[1]
-            - 0.001 / (1.39 - x[0] ** 2)
+            - 0.01 / (1.39 - x[0] ** 2)
             - 0.30 / (1.39 - x[1] ** 2),
         )
     )
@@ -46,7 +46,7 @@ def RiverPollutionProblem():
     )
 
     objectives.append(
-        ScalarObjective("f_3", lambda x: -0.96 + 0.96 / (1.09 - x[1] ** 2))
+        ScalarObjective("f_4", lambda x: -0.96 + 0.96 / (1.09 - x[1] ** 2))
     )
 
     # problem
