@@ -5,6 +5,7 @@ from pytest import approx
 from desdeo.solver.ASF import SimpleASF
 from desdeo.solver.ScalarSolver import (
     ASFScalarSolver,
+    EpsilonConstraintScalarSolver,
     WeightingMethodScalarSolver,
 )
 
@@ -17,6 +18,11 @@ def WeightedCylinderSolver(CylinderProblem):
 @pytest.fixture
 def SimpleASFCylinderSolver(CylinderProblem):
     return ASFScalarSolver(CylinderProblem)
+
+
+@pytest.fixture
+def EpsilonConstraintCylinderSolver(CylinderProblem):
+    return EpsilonConstraintScalarSolver(CylinderProblem)
 
 
 @pytest.fixture
@@ -120,6 +126,31 @@ def test_weighting_solve_single_weight(WeightedCylinderSolver):
 
     # Constraints should still hold!
     assert np.all(np.greater_equal(constraints, 0.0))
+
+
+@pytest.mark.snipe
+def test_epsilon_evaluator(
+    EpsilonConstraintCylinderSolver,
+    cylinder_good_decision_vectors,
+    cylinder_bad_decision_vectors,
+):
+    solver = EpsilonConstraintCylinderSolver
+    solver.epsilons = np.array([np.inf, np.inf, np.inf])
+    solver.to_be_minimized = 0
+
+    assert np.all(solver._evaluator(cylinder_good_decision_vectors) > -np.inf)
+    assert np.all(solver._evaluator(cylinder_bad_decision_vectors) == np.inf)
+
+    solver.epsilons = np.array([np.inf, np.inf, 5])
+    assert solver._evaluator(cylinder_good_decision_vectors)[2] == np.inf
+
+    solver.to_be_minimized = 2
+    assert np.all(
+        np.isclose(
+            solver._evaluator(cylinder_good_decision_vectors),
+            np.array([3.0, 1.6, 9.12]),
+        )
+    )
 
 
 def test_asf_evaluator(

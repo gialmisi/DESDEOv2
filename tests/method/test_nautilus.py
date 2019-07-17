@@ -194,11 +194,13 @@ def test_nautilus_iterate_percentages(RiverPollutionProblem):
     assert mu[3] == approx(1 / ((40 / 100) * (50 - (0.5 - 0.1))))
 
 
-@pytest.mark.snipe
 def test_nautilus_iterate_first_point(NautilusInitializedRiver):
     method = NautilusInitializedRiver
-    (var, (obj, cons)) = method.iterate(index_set=np.array([2, 2, 1, 1]))
+    method.iterate(index_set=np.array([2, 2, 1, 1]))
 
-    print(obj)
-    print(var)
-    # WIP
+    objective = method._Nautilus__objective_vectors[1]
+    solution = method._Nautilus__solutions[1]
+
+    evaluated = method.problem.evaluate(solution)[0][0]
+
+    assert np.all(np.isclose(objective, evaluated))

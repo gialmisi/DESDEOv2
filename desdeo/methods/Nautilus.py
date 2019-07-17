@@ -65,17 +65,17 @@ class Nautilus(InteractiveMethodBase):
         ]
         # Used to calculate the utopian point from the ideal point
         self.__epsilon: float = 0.0
-        self.__n_of_iterations: int = 0
-        self.__current_iteration: int = 0
-        self.__iterations_left: int = 0
-        self.__lower_bound: np.ndarray = None
-        self.__upper_bound: np.ndarray = None
-        self.__current_iteration_point: np.ndarray = None
-        self.__reference_point: np.ndarray = None
-        self.__iteration_points: List[np.ndarray] = []
+        self.__n_of_iterations: int = 0  # == itn
+        self.__current_iteration: int = 0  # == h
+        self.__lower_bounds: List[np.ndarray] = []
+        self.__upper_bounds: List[np.ndarray] = []
+        self.__iteration_points: List[np.ndarray] = []  # == z_i^h
+        self.__reference_point: np.ndarray = None  # == q
+        self.__solutions: List[np.ndarray] = []  # == x^h
+        self.__objective_vectors: List[np.ndarray] = []  # == f^h
         self.__preference_index_set: np.ndarray = None
         self.__preference_percentages: np.ndarray = None
-        self.__preferential_factors: np.ndarray = np.zeros(
+        self.__preferential_factors: np.ndarray = np.zeros(  # == mu_i^h
             self.problem.n_of_objectives
         )
         self.__scalar_solver: ASFScalarSolver = ASFScalarSolver(self.problem)
@@ -256,6 +256,22 @@ class Nautilus(InteractiveMethodBase):
 
         return parameters_set
 
+    def _calculate_iteration_point(self) -> None:
+        """Calculate and store a new iteration point.
+
+        """
+        # Number of iterations left. The plus one is to ensure the current
+        # iteration is also counted.
+        ith: int = self.n_of_iterations - self.__current_iteration + 1
+        z_prev = self.__iteration_points[
+            self.__current_iteration - 1
+        ]  # == z_h-1
+        f_h = self.__objective_vectors[self.__current_iteration]
+
+        z_h = ((ith - 1) / (ith)) * z_prev + (1 / (ith)) * f_h
+
+        self.__iteration_points[self.__current_iteration] = z_h
+
     def initialize(
         self, itn: int = 5, initialization_parameters: Dict[str, Any] = None
     ) -> np.ndarray:
@@ -309,18 +325,25 @@ class Nautilus(InteractiveMethodBase):
             solver = IdealAndNadirPointSolver(self.problem)
             _, self.problem.nadir = solver.solve()
 
-        self.__lower_bound = self.problem.ideal
-        self.__upper_bound = self.problem.nadir
-        self.__current_iteration_point = self.problem.nadir
-        self.__iteration_points.append(self.__current_iteration_point)
-
-        self.__iterations_left = self.n_of_iterations
         self.__current_iteration = 1
+
+        self.__iteration_points = [None] * self.n_of_iterations
+        self.__iteration_points[0] = self.problem.nadir
+
+        self.__upper_bounds = [None] * self.n_of_iterations
+        self.__upper_bounds[self.__current_iteration] = self.problem.nadir
+
+        self.__lower_bounds = [None] * self.n_of_iterations
+        self.__lower_bounds[self.__current_iteration] = self.problem.ideal
+
+        self.__solutions = [None] * self.n_of_iterations
+
+        self.__objective_vectors = [None] * self.n_of_iterations
 
         self.asf.nadir_point = self.problem.nadir
         self.asf.utopian_point = self.problem.ideal - self.epsilon
 
-        return self.__current_iteration_point
+        return self.__iteration_points[0]
 
     def iterate(
         self,
@@ -396,13 +419,26 @@ class Nautilus(InteractiveMethodBase):
             raise InteractiveMethodError(msg)
 
         # set the current iteration point as the reference point
-        self.__reference_point = self.__current_iteration_point
+        self.__reference_point = self.__iteration_points[
+            self.__current_iteration - 1
+        ]
 
-        # solve the ASF
         # set the preferential factors in the underlaying asf
         self.asf.preferential_factors = self.preferential_factors
 
-        self.scalar_solver.solve(self.__reference_point)
+        # solve the ASF
+        (solution, (objective, _)) = self.scalar_solver.solve(
+            self.__reference_point
+        )
+
+        # Store the solution and corresponding objective vector
+        self.__solutions[self.__current_iteration] = solution
+        self.__objective_vectors[self.__current_iteration] = objective[0]
+
+        # calculate a new iteration point
+        self._calculate_iteration_point()
+
+        # calculate the bounds
 
         return (1, (1, 1))
 

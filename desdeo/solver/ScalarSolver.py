@@ -6,7 +6,7 @@ import logging
 import logging.config
 from abc import abstractmethod
 from os import path
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Tuple
 
 import numpy as np
 from scipy.optimize import OptimizeResult, differential_evolution
@@ -58,7 +58,7 @@ class ScalarSolverBase(abc.ABC):
     @abstractmethod
     def solve(
         self, args: Any
-    ) -> Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]:
+    ) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Solves the problem and returns relevant information.
 
         Args:
@@ -66,7 +66,7 @@ class ScalarSolverBase(abc.ABC):
             See the solvers for further details.
 
         Returns:
-            Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]: A tuple
+            Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]: A tuple
             containing the decision variables as the first element and the
             evaluation result of the underlaying porblem as the second element.
 
@@ -146,7 +146,7 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
 
     def solve(
         self, weights: np.ndarray
-    ) -> Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]:
+    ) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Use differential evolution to solve the weighted sum problem.
 
         Args:
@@ -154,7 +154,7 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
             the sum.
 
         Returns:
-            Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]: A tuple
+            Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]: A tuple
             containing the decision variables as the first element and the
             evaluation results of the underlaying porblem as the second
             element.
@@ -171,7 +171,8 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
         polish: bool
         results: OptimizeResult
 
-        func = self._evaluator
+        # Scipy DE solver handles only scalar valued functions
+        func = lambda x: self._evaluator(x)[0]  # noqa: E731
         bounds = self.problem.get_variable_bounds()
         polish = True
 
@@ -210,9 +211,10 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
 
     """
 
-    def __init__(self, problem: ProblemBase, epsilons: np.ndarray):
+    def __init__(self, problem: ProblemBase):
         super().__init__(problem)
-        self.__epsilons: np.ndarray = epsilons
+        self.__epsilons: np.ndarray
+        self.__to_be_minimized: int
 
     @property
     def epsilons(self) -> np.ndarray:
@@ -220,12 +222,66 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
 
     @epsilons.setter
     def epsilons(self, val: np.ndarray):
+        if len(val) != self.problem.n_of_objectives:
+            msg = (
+                "The length of the epsilons array '{}' must match the "
+                "number of objectives '{}'."
+            ).format(len(val), self.problem.n_of_objectives)
+            logger.debug(msg)
+            raise ScalarSolverError(msg)
+
         self.__epsilons = val
 
-    def _evaluator(self, decision_vectors: np.ndarray) -> np.ndarray:
-        pass
+    @property
+    def to_be_minimized(self) -> int:
+        return self.__to_be_minimized
 
-    def solve(self, epsilons: np.ndarray):
+    @to_be_minimized.setter
+    def to_be_minimized(self, val: int):
+        self.__to_be_minimized = val
+
+    def _evaluator(self, decision_vector: np.ndarray) -> np.ndarray:
+        """A helper function to express the original problem as an epsilon
+           constraint problem.
+
+        Args:
+            decision_vectors (np.ndarray): An array of arrays representing the
+            decision variable values to evaluate the underlaying MOO problem.
+
+        Returns:
+            np.ndarray: An array of the epsilon constraint problem values
+            corresponding to each decision variable vector.
+
+        Note:
+            The epsilons attribute  must be set before this function works.
+
+        """
+
+        objective_vectors: np.ndarray
+        constraints: np.ndarray
+        epsilon_values: np.ndarray
+
+        objective_vectors, constraints = self.problem.evaluate(decision_vector)
+        epsilon_values = np.zeros(len(objective_vectors))
+
+        for (ind, elem) in enumerate(objective_vectors):
+            if (constraints is not None) and (np.any(constraints[ind] < 0)):
+                # suicide method for broken constraints
+                epsilon_values[ind] = np.inf
+                continue
+            else:
+                mask = np.array(
+                    [i != self.to_be_minimized for i in range(len(elem))]
+                )
+                if np.any(elem[mask] > self.epsilons[mask]):
+                    epsilon_values[ind] = np.inf
+                else:
+                    epsilon_values[ind] = elem[self.to_be_minimized]
+
+        return epsilon_values
+
+    def solve(self, to_be_minimized: int):
+        self.to_be_minimized = to_be_minimized
         pass
 
 
@@ -301,14 +357,14 @@ class ASFScalarSolver(ScalarSolverBase):
 
     def solve(
         self, reference_point: np.ndarray
-    ) -> Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]:
+    ) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Use differential evolution to solve the ASF problem.
 
         Args:
             reference_point (np.ndarray): An array representing the reference
             point in the objective function space used the is ASF.
         Returns:
-            Optional[Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]]: A tuple
+            Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]: A tuple
             containing the decision variables as the first element and the
             evaluation results of the underlaying problem as the second
             element.
@@ -324,7 +380,8 @@ class ASFScalarSolver(ScalarSolverBase):
         polish: bool
         results: OptimizeResult
 
-        func = self._evaluator
+        # Scipy DE solver handles only scalar valued functions
+        func = lambda x: self._evaluator(x)[0]  # noqa: E731
         tol = 0.0000001
         popsize = 10
         maxiter = 500000
