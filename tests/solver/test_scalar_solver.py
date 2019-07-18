@@ -7,6 +7,7 @@ from desdeo.solver.ScalarSolver import (
     ASFScalarSolver,
     EpsilonConstraintScalarSolver,
     WeightingMethodScalarSolver,
+    ScalarSolverError,
 )
 
 
@@ -128,7 +129,16 @@ def test_weighting_solve_single_weight(WeightedCylinderSolver):
     assert np.all(np.greater_equal(constraints, 0.0))
 
 
-@pytest.mark.snipe
+def test_epsilon_bad_epsilons(EpsilonConstraintCylinderSolver):
+    solver = EpsilonConstraintCylinderSolver
+
+    with pytest.raises(ScalarSolverError):
+        solver.epsilons = np.array([0.5, 1.0])
+
+    with pytest.raises(ScalarSolverError):
+        solver.epsilons = np.array([0.5, 1.0, 5.0, 2.0])
+
+
 def test_epsilon_evaluator(
     EpsilonConstraintCylinderSolver,
     cylinder_good_decision_vectors,
@@ -151,6 +161,37 @@ def test_epsilon_evaluator(
             np.array([3.0, 1.6, 9.12]),
         )
     )
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_epsilon_inf_eps_solve(EpsilonConstraintCylinderSolver):
+    """By having infinte epsilons, the objective to be solved, should reach
+    its' minimum possible value.
+
+    """
+    solver = EpsilonConstraintCylinderSolver
+    solver.epsilons = np.array([np.inf, np.inf, np.inf])
+
+    # minimize volume
+    min_volume = np.pi*5**2*10
+    (variables, (objectives, constraints)) = solver.solve(0)
+    assert objectives[0][0] == approx(min_volume, abs=1e-3)
+    assert np.all(np.isclose(variables, np.array([5, 10])))
+    assert np.all(constraints >= 0)
+
+    # minimize surface area (actually maximize)
+    min_area = -(2 * np.pi * 12.5**2 + 2 * np.pi * 12.5 * 25)
+    (variables, (objectives, constraints)) = solver.solve(1)
+    assert objectives[0][1] == approx(min_area, abs=1e-3)
+    assert np.all(np.isclose(variables, np.array([12.5, 25])))
+    assert np.all(constraints >= 0)
+
+    # minimiz height difference
+    min_deltah = 0
+    (variables, (objectives, constraints)) = solver.solve(2)
+    assert objectives[0][2] == approx(min_deltah, abs=1e-3)
+    assert variables[1] == approx(15.0)
+    assert np.all(constraints >= 0)
 
 
 def test_asf_evaluator(

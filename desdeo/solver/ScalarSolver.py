@@ -281,8 +281,54 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
         return epsilon_values
 
     def solve(self, to_be_minimized: int):
+        """Use differential evolution to solve the epsilon constraint problem.
+
+        Args:
+            to_be_minimized (int): The index of the problem in the underlaying
+            MOProblem to be solved.
+        Returns:
+            Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]: A tuple
+            containing the decision variables as the first element and the
+            evaluation results of the underlaying problem as the second
+            element.
+
+        """
         self.to_be_minimized = to_be_minimized
-        pass
+        func: Callable
+        tol: float
+        popsize: int
+        maxiter: int
+        bounds: np.ndarray
+        polish: bool
+        results: OptimizeResult
+
+        # Scipy DE solver handles only scalar valued functions
+        func = lambda x: self._evaluator(x)[0]  # noqa: E731
+        tol = 0.00001
+        popsize = 10
+        maxiter = 10000
+        bounds = self.problem.get_variable_bounds()
+        polish = True
+
+        results = differential_evolution(
+            func,
+            bounds,
+            tol=tol,
+            popsize=popsize,
+            polish=polish,
+            maxiter=maxiter,
+        )
+
+        if results.success:
+            decision_variables: np.ndarray = results.x
+
+            return (
+                decision_variables,
+                self.problem.evaluate(decision_variables),
+            )
+        else:
+            logger.debug(results.message)
+            raise ScalarSolverError(results.message)
 
 
 class ASFScalarSolver(ScalarSolverBase):
