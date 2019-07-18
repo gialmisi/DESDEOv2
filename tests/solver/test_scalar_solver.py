@@ -6,8 +6,8 @@ from desdeo.solver.ASF import SimpleASF
 from desdeo.solver.ScalarSolver import (
     ASFScalarSolver,
     EpsilonConstraintScalarSolver,
-    WeightingMethodScalarSolver,
     ScalarSolverError,
+    WeightingMethodScalarSolver,
 )
 
 
@@ -173,14 +173,14 @@ def test_epsilon_inf_eps_solve(EpsilonConstraintCylinderSolver):
     solver.epsilons = np.array([np.inf, np.inf, np.inf])
 
     # minimize volume
-    min_volume = np.pi*5**2*10
+    min_volume = np.pi * 5 ** 2 * 10
     (variables, (objectives, constraints)) = solver.solve(0)
     assert objectives[0][0] == approx(min_volume, abs=1e-3)
     assert np.all(np.isclose(variables, np.array([5, 10])))
     assert np.all(constraints >= 0)
 
     # minimize surface area (actually maximize)
-    min_area = -(2 * np.pi * 12.5**2 + 2 * np.pi * 12.5 * 25)
+    min_area = -(2 * np.pi * 12.5 ** 2 + 2 * np.pi * 12.5 * 25)
     (variables, (objectives, constraints)) = solver.solve(1)
     assert objectives[0][1] == approx(min_area, abs=1e-3)
     assert np.all(np.isclose(variables, np.array([12.5, 25])))

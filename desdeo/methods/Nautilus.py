@@ -6,7 +6,7 @@ NAUTILUS-family are defined here.
 import logging
 import logging.config
 from os import path
-from typing import Any, Callable, Dict, List, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import numpy as np
 
@@ -17,7 +17,10 @@ from desdeo.methods.InteractiveMethod import (
 from desdeo.problem.Problem import ProblemBase
 from desdeo.solver.ASF import ReferencePointASF
 from desdeo.solver.PointSolver import IdealAndNadirPointSolver
-from desdeo.solver.ScalarSolver import ASFScalarSolver
+from desdeo.solver.ScalarSolver import (
+    ASFScalarSolver,
+    EpsilonConstraintScalarSolver,
+)
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"
@@ -67,20 +70,27 @@ class Nautilus(InteractiveMethodBase):
         self.__epsilon: float = 0.0
         self.__n_of_iterations: int = 0  # == itn
         self.__current_iteration: int = 0  # == h
+        self.__remaining_iterations: int = 0  # == ith
         self.__lower_bounds: List[np.ndarray] = []
         self.__upper_bounds: List[np.ndarray] = []
         self.__iteration_points: List[np.ndarray] = []  # == z_i^h
         self.__reference_point: np.ndarray = None  # == q
         self.__solutions: List[np.ndarray] = []  # == x^h
         self.__objective_vectors: List[np.ndarray] = []  # == f^h
+        self.__distances: List[float] = []  # == d^h
         self.__preference_index_set: np.ndarray = None
         self.__preference_percentages: np.ndarray = None
         self.__preferential_factors: np.ndarray = np.zeros(  # == mu_i^h
             self.problem.n_of_objectives
         )
+
         self.__scalar_solver: ASFScalarSolver = ASFScalarSolver(self.problem)
         self.__asf: ReferencePointASF = ReferencePointASF(None, None, None)
         self.__scalar_solver.asf = self.__asf
+
+        self.__epsilon_solver: EpsilonConstraintScalarSolver = EpsilonConstraintScalarSolver(
+            self.problem
+        )
 
     @property
     def epsilon(self) -> float:
@@ -262,7 +272,7 @@ class Nautilus(InteractiveMethodBase):
         """
         # Number of iterations left. The plus one is to ensure the current
         # iteration is also counted.
-        ith: int = self.n_of_iterations - self.__current_iteration + 1
+        ith = self.__remaining_iterations
         z_prev = self.__iteration_points[
             self.__current_iteration - 1
         ]  # == z_h-1
@@ -271,6 +281,24 @@ class Nautilus(InteractiveMethodBase):
         z_h = ((ith - 1) / (ith)) * z_prev + (1 / (ith)) * f_h
 
         self.__iteration_points[self.__current_iteration] = z_h
+
+    def _calculate_distance(self) -> None:
+        """Calculate and store the distance to the pareto set for current
+        iteration
+
+        """
+        self.__distances[self.__current_iteration] = 100 * (
+            np.linalg.norm(
+                self.__iteration_points[self.__current_iteration]
+                - self.problem.nadir
+            )
+            / (
+                np.linalg.norm(
+                    self.__objective_vectors[self.__current_iteration]
+                    - self.problem.nadir
+                )
+            )
+        )
 
     def initialize(
         self, itn: int = 5, initialization_parameters: Dict[str, Any] = None
@@ -285,7 +313,7 @@ class Nautilus(InteractiveMethodBase):
             defining the initial parameters for initializing the method.
 
         Returns:
-            np.ndarray: The first iteration point, the nadir.
+            np.ndarray: The first iteration point
 
         Raises:
             InteractiveMethodError: Wrong type of parameter or missing
@@ -326,6 +354,7 @@ class Nautilus(InteractiveMethodBase):
             _, self.problem.nadir = solver.solve()
 
         self.__current_iteration = 1
+        self.__remaining_iterations = self.n_of_iterations
 
         self.__iteration_points = [None] * self.n_of_iterations
         self.__iteration_points[0] = self.problem.nadir
@@ -340,6 +369,8 @@ class Nautilus(InteractiveMethodBase):
 
         self.__objective_vectors = [None] * self.n_of_iterations
 
+        self.__distances = [0.0] * self.n_of_iterations
+
         self.asf.nadir_point = self.problem.nadir
         self.asf.utopian_point = self.problem.ideal - self.epsilon
 
@@ -350,8 +381,17 @@ class Nautilus(InteractiveMethodBase):
         preference_information: Dict[str, Any] = None,
         index_set: np.ndarray = None,
         percentages: np.ndarray = None,
-    ) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    ) -> Tuple[np.ndarray, List[Tuple[float, float]], float]:
         """Iterate once according to the user preference.
+
+        Returns:
+            Tuple[np.ndarray, List[Tuple[float, float]], float]: A tuple
+            containing:
+                np.ndarray: The current iteration ponint.
+                List[Tuple[float, float]]: A list with tuples with the lower
+                and upper bounds for the next iteration
+                float: The distance of the current iteration point to the
+                pareto optimal set.
 
         Note:
             If both the relative importance and percentages are defined,
@@ -438,9 +478,71 @@ class Nautilus(InteractiveMethodBase):
         # calculate a new iteration point
         self._calculate_iteration_point()
 
-        # calculate the bounds
+        # calculate the lower bounds for the next iteration
+        self.__lower_bounds[self.__current_iteration + 1] = np.zeros(
+            self.problem.n_of_objectives
+        )
 
-        return (1, (1, 1))
+        self.__epsilon_solver.epsilons = self.__iteration_points[
+            self.__current_iteration
+        ]
 
-    def interact(self):
-        pass
+        for r in range(self.problem.n_of_objectives):
+            (_, (objective, _)) = self.__epsilon_solver.solve(r)
+            self.__lower_bounds[self.__current_iteration + 1][r] = objective[
+                0
+            ][r]
+
+        # set the upper bounds
+        self.__upper_bounds[
+            self.__current_iteration + 1
+        ] = self.__iteration_points[self.__current_iteration]
+
+        # Calculate the distance to the pareto optimal set
+        self._calculate_distance()
+
+        return (
+            self.__iteration_points[self.__current_iteration],
+            list(
+                zip(
+                    self.__lower_bounds[self.__current_iteration + 1],
+                    self.__upper_bounds[self.__current_iteration + 1],
+                )
+            ),
+            self.__distances[self.__current_iteration],
+        )
+
+    def interact(self, new_remaining_iterations: Optional[int] = None):
+        """Change the total number of iterations if supplied and take a step
+        backwards if the DM wished to do so.
+
+        """
+        if new_remaining_iterations is not None:
+            if new_remaining_iterations < self.__remaining_iterations:
+                self.__remaining_iterations = new_remaining_iterations
+            else:
+                msg = (
+                    "Bad number of new remaining iterations '{}'. Should "
+                    "be less or equal to the current number of remaining "
+                    "iterations '{}'."
+                ).format(new_remaining_iterations, self.__remaining_iterations)
+                logger.debug(msg)
+                raise InteractiveMethodError(msg)
+
+        else:
+            self.__remaining_iterations -= 1
+            self.__current_iteration += 1
+
+            # Handle this in iterate
+            # if step_backwards:
+            #     # Take a backward step
+            #     if short_step:
+            #         # take a short step
+            #         pass
+            #     else:
+            #         # iterate and assume to get new preference information
+            #         pass
+
+            # else:
+            #     # continue next iteration, or stop, if last iteration
+            #     pass
