@@ -15,14 +15,14 @@ def test_nautilus_initialization(RiverPollutionProblem):
     init_reqs = method.initialization_requirements[0]
 
     # Test that the caller works
-    assert method.n_of_iterations == 0
+    assert method.itn == 0
     init_reqs[2](method, 5)
-    assert method.n_of_iterations == 5
+    assert method.itn == 5
 
     # Test initializer
     init_pars = {init_reqs[0]: 20}
     method.initialize(initialization_parameters=init_pars)
-    assert method.n_of_iterations == 20
+    assert method.itn == 20
 
     # Test bad init pars
     init_pars_bad_key = {"Wrong key": 10}
@@ -42,7 +42,7 @@ def test_nautilus_initialization(RiverPollutionProblem):
     # Test direct specification
     itn = 42
     method.initialize(itn=itn)
-    assert method.n_of_iterations == 42
+    assert method.itn == 42
 
 
 def test_nautilus_initialization_ideal_and_nadir(RiverPollutionProblem):
@@ -85,11 +85,11 @@ def test_nautilus_initialization_ideal_and_nadir(RiverPollutionProblem):
 def test_nautilus_iterations_setter(RiverPollutionProblem):
     method = Nautilus(RiverPollutionProblem)
 
-    method.n_of_iterations = 10
-    assert method.n_of_iterations == 10
+    method.itn = 10
+    assert method.itn == 10
 
     with pytest.raises(InteractiveMethodError):
-        method.n_of_iterations = -5
+        method.itn = -5
 
 
 def test_nautilus_index_setter(RiverPollutionProblem):
@@ -146,12 +146,6 @@ def test_nautilus_iterate_preference(NautilusInitializedRiver):
         np.isclose(method.preference_percentages, np.array([10, 20, 40, 30]))
     )
 
-    # test named, default
-    method.iterate()
-    assert np.all(
-        np.isclose(method.preference_percentages, np.array([25, 25, 25, 25]))
-    )
-
     # test bad
     with pytest.raises(InteractiveMethodError):
         dict_bad = {"Bad value": "hello"}
@@ -199,8 +193,8 @@ def test_nautilus_iterate_first_point(NautilusInitializedRiver):
     method = NautilusInitializedRiver
     res = method.iterate(index_set=np.array([2, 2, 1, 1]))
 
-    objective = method._Nautilus__objective_vectors[1]
-    solution = method._Nautilus__solutions[1]
+    objective = method.fs[1]
+    solution = method.xs[1]
 
     evaluated = method.problem.evaluate(solution)[0][0]
 
