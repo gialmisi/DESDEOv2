@@ -6,7 +6,7 @@ NAUTILUS-family are defined here.
 import logging
 import logging.config
 from os import path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -42,30 +42,7 @@ class Nautilus(InteractiveMethodBase):
 
     def __init__(self, problem: ProblemBase):
         super().__init__(problem)
-        self.__initialization_requirements: List[
-            Tuple[str, Type, Callable]
-        ] = [
-            # The number of iterations the DM wishes to carry out
-            (
-                "Number of iterations",
-                int,
-                Nautilus.itn.fset,  # type: ignore
-            )
-        ]
-        self.__preference_requirements: List[Tuple[str, Type, Callable]] = [
-            # Ranking the objectives by a relative index set
-            (
-                "Relative importance",
-                np.ndarray,
-                Nautilus.preference_index_set.fset,  # type: ignore
-            ),
-            # Ranking the objectives by percentages
-            (
-                "Percentages",
-                np.ndarray,
-                Nautilus.preference_percentages.fset,  # type: ignore
-            ),
-        ]
+
         # Used to calculate the utopian point from the ideal point
         self.__epsilon: float = 0.0
         self.__itn: int = 0  # total number of iterations
@@ -141,6 +118,22 @@ class Nautilus(InteractiveMethodBase):
         self.__ith = val
 
     @property
+    def lower_bounds(self) -> List[np.ndarray]:
+        return self.__lower_bounds
+
+    @lower_bounds.setter
+    def lower_bounds(self, val: List[np.ndarray]):
+        self.__lower_bounds = val
+
+    @property
+    def upper_bounds(self) -> List[np.ndarray]:
+        return self.__upper_bounds
+
+    @upper_bounds.setter
+    def upper_bounds(self, val: List[np.ndarray]):
+        self.__upper_bounds = val
+
+    @property
     def zs(self) -> List[np.ndarray]:
         return self.__zs
 
@@ -187,10 +180,6 @@ class Nautilus(InteractiveMethodBase):
     @mus.setter
     def mus(self, val: np.ndarray):
         self.__mus = val
-
-    @property
-    def initialization_requirements(self) -> List[Tuple[str, Type, Callable]]:
-        return self.__initialization_requirements
 
     @property
     def preference_index_set(self) -> np.ndarray:
@@ -286,51 +275,7 @@ class Nautilus(InteractiveMethodBase):
     def asf(self, val: ReferencePointASF):
         self.__asf = val
 
-    def _parse_parameters(
-        self,
-        parameters: Dict[str, Any],
-        requirements: List[Tuple[str, Type, Callable]],
-    ):
-        """Parse the given parameters and set them.
-
-        Arguments:
-            parameters (Dict[str, Any]): A dict with str keys representing the
-            name of the parameter and the value of the paramter.
-            requirements (List[Tuple[str, Type, Callable]]): A list containing
-            tuples which contain:
-                str: The corresponding name of the parameter which works as the
-                key in the dictionary supplies as the first parameter.
-                Type: The type of paramter.
-                Callable: The setter to set the value of the parameter.
-
-        Returns:
-            List[str]: A list with the names of the parameters set.
-
-        Raises:
-            InteractiveMethodError: When some parameter is missing, has the
-            wrong type or has the wrong kind of value.
-
-        """
-        parameters_set = []
-        for (key, t, setter) in requirements:
-            if key in parameters:
-                if isinstance(parameters[key], t):
-                    # Parameter found and is of correct type
-                    setter(self, parameters[key])
-                    parameters_set.append(key)
-                else:
-                    # Wrong type of paramter
-                    msg = (
-                        "The type '{}' of the supplied initialization "
-                        "parameter '{}' does not match the expected "
-                        "type'{}'."
-                    ).format(str(type(parameters[key])), key, str(t))
-                    logger.debug(msg)
-                    raise InteractiveMethodError(msg)
-
-        return parameters_set
-
-    def _calculate_iteration_point(self) -> None:
+    def _calculate_iteration_point(self) -> np.ndarray:
         """Calculate and store a new iteration point.
 
         """
@@ -342,29 +287,26 @@ class Nautilus(InteractiveMethodBase):
 
         z_h = ((ith - 1) / (ith)) * z_prev + (1 / (ith)) * f_h
 
-        self.zs[self.h] = z_h
+        return z_h
 
-    def _calculate_distance(self) -> None:
-        """Calculate and store the distance to the pareto set for current
+    def _calculate_distance(self) -> float:
+        """Calculate and store the distance to the pareto set for the current
         iteration
 
         """
-        self.ds[self.h] = 100 * (
+        ds = 100 * (
             np.linalg.norm(self.zs[self.h] - self.problem.nadir)
             / (np.linalg.norm(self.fs[self.h] - self.problem.nadir))
         )
+        return ds
 
-    def initialize(
-        self, itn: int = 5, initialization_parameters: Dict[str, Any] = None
-    ) -> np.ndarray:
+    def initialize(self, itn: int = 5) -> np.ndarray:
         """Initialize the method by setting the initialization parameters and
         caluclating the initial bounds of the problem, the nadir and ideal
         point, if not defined in the problem. See initialization_requirements.
 
         Arguments:
             itn (int): Number of total iterations. Defaults to 5.
-            initialization_parameters (Dict[str, Any]): A dict with str keys
-            defining the initial parameters for initializing the method.
 
         Returns:
             np.ndarray: The first iteration point
@@ -374,22 +316,7 @@ class Nautilus(InteractiveMethodBase):
             parameter in initialization_requirements.
 
         """
-        # If given, parse and set the given initialization parameters
-        if initialization_parameters is not None:
-            parameters_set = self._parse_parameters(
-                initialization_parameters, self.__initialization_requirements
-            )
-            # Check that all the initialization parameters were set
-            for (key, _, _) in self.__initialization_requirements:
-                if key not in parameters_set:
-                    msg = (
-                        "Required initialization parameter " "'{}' not set."
-                    ).format(key)
-                    logger.debug(msg)
-                    raise InteractiveMethodError(msg)
-        # Use the named arguments instead
-        else:
-            self.itn = itn
+        self.itn = itn
 
         # Check if the ideal and nadir points are set
         if self.problem.ideal is None and self.problem.nadir is None:
@@ -413,11 +340,11 @@ class Nautilus(InteractiveMethodBase):
         self.zs = [None] * self.itn
         self.zs[0] = self.problem.nadir
 
-        self.__upper_bounds = [None] * self.itn
-        self.__upper_bounds[self.h] = self.problem.nadir
+        self.lower_bounds = [None] * self.itn
+        self.lower_bounds[self.h] = self.problem.ideal
 
-        self.__lower_bounds = [None] * self.itn
-        self.__lower_bounds[self.h] = self.problem.ideal
+        self.upper_bounds = [None] * self.itn
+        self.upper_bounds[self.h] = self.problem.nadir
 
         self.xs = [None] * self.itn
 
@@ -430,13 +357,7 @@ class Nautilus(InteractiveMethodBase):
 
         return self.zs[0]
 
-    def iterate(
-        self,
-        preference_information: Dict[str, Any] = None,
-        index_set: np.ndarray = None,
-        percentages: np.ndarray = None,
-        short_step: bool = False,
-    ) -> Tuple[np.ndarray, List[Tuple[float, float]], float]:
+    def iterate(self) -> Tuple[np.ndarray, List[Tuple[float, float]], float]:
         """Iterate once according to the user preference.
 
         Returns:
@@ -453,45 +374,23 @@ class Nautilus(InteractiveMethodBase):
             percentages are used.
 
         """
-        if short_step:
+        if self.__step_back:
             if self.h == 1:
                 msg = "Cannot take a backwards step on the first iteration."
                 logger.debug(msg)
                 raise InteractiveMethodError(msg)
 
-        if preference_information is not None:
-            parameters_set = self._parse_parameters(
-                preference_information, self.__preference_requirements
+        if not self.__step_back and self.__short_step:
+            msg = (
+                "Can take a short step only when stepping from the "
+                "previous point."
             )
-            if len(parameters_set) >= 1:
-                used_preference = parameters_set[0]
-            else:
-                msg = (
-                    "The amount of preference parameters set during the "
-                    "iteration phase '{}' is too low. Check the preference "
-                    "information '{}'"
-                ).format(len(parameters_set), preference_information)
-                logger.debug(msg)
-                raise InteractiveMethodError(msg)
+            logger.debug(msg)
+            raise InteractiveMethodError(msg)
 
-        elif not short_step:
-            # no short step, use new preference information
-            if index_set is not None:
-                self.preference_index_set = index_set
-                used_preference = "Relative importance"
-
-            elif percentages is not None:
-                # percentages given
-                self.preference_percentages = percentages
-                used_preference = "Percentages"
-
-            else:
-                # both preferences not given, use from previus step
-                used_preference = "Previous"
-
-        # Calculate the preferential factors
-        if not short_step:
-            if used_preference == "Percentages":
+        # Calculate the preferential factors or use existing ones
+        if not self.__short_step:
+            if self.preference_percentages is not None:
                 # use percentages to calcualte the new iteration point
                 delta_q = self.preference_percentages / 100
                 self.preferential_factors = 1 / (
@@ -502,7 +401,7 @@ class Nautilus(InteractiveMethodBase):
                     )
                 )
 
-            elif used_preference == "Relative importance":
+            elif self.preference_index_set is not None:
                 # Use the relative importance to calcualte the new points
                 print(self.preference_index_set)
                 for (i, r) in enumerate(self.preference_index_set):
@@ -514,15 +413,8 @@ class Nautilus(InteractiveMethodBase):
                         )
                     )
 
-            elif used_preference == "Previous":
-                if self.h == 1:
-                    # First iteration, cannot use previous preference
-                    msg = (
-                        "Cannot use previous' step preference on the first "
-                        "iteration."
-                    )
-                    logger.debug(msg)
-                    raise InteractiveMethodError(msg)
+            elif self.preferential_factors is not None:
+                # use existing factors
                 pass
 
             else:
@@ -530,9 +422,8 @@ class Nautilus(InteractiveMethodBase):
                 logger.debug(msg)
                 raise InteractiveMethodError(msg)
 
-        if not short_step and used_preference != "Previous":
-            # No need to calculate all this if short step
-            # Take a normal step
+        if not self.__short_step and not self.__use_previous_preference:
+            # Take a normal step and calculate a new reference point
             # set the current iteration point as the reference point
             self.q = self.zs[self.h - 1]
 
@@ -547,12 +438,13 @@ class Nautilus(InteractiveMethodBase):
             self.fs[self.h] = objective[0]
 
             # calculate a new iteration point
-            self._calculate_iteration_point()
+            self.zs[self.h] = self._calculate_iteration_point()
 
-        elif used_preference == "Previous":
+        elif not self.__step_back and self.__use_previous_preference:
             # Use the solution and objective of the last step
             self.xs[self.h] = self.xs[self.h - 1]
             self.fs[self.h] = self.fs[self.h - 1]
+            self.zs[self.h] = self._calculate_iteration_point()
 
         else:
             # Take a short step
@@ -574,7 +466,7 @@ class Nautilus(InteractiveMethodBase):
             self.__upper_bounds[self.h + 1] = self.zs[self.h]
 
         # Calculate the distance to the pareto optimal set
-        self._calculate_distance()
+        self.ds[self.h] = self._calculate_distance()
 
         return (
             self.zs[self.h],
@@ -589,13 +481,25 @@ class Nautilus(InteractiveMethodBase):
 
     def interact(
         self,
+        index_set: np.ndarray = None,
+        percentages: np.ndarray = None,
+        use_previous_preference: bool = False,
         new_remaining_iterations: Optional[int] = None,
         step_back: bool = False,
+        short_step: bool = False,
     ) -> Union[int, Tuple[np.ndarray, np.ndarray]]:
         """Change the total number of iterations if supplied and take a step
-        backwards if the DM wished to do so.
+        backwards if the DM wishes to do so.
 
         """
+        if index_set is not None:
+            self.preference_index_set = index_set
+
+        if percentages is not None:
+            self.preference_percentages = percentages
+
+        self.__use_previous_preference = use_previous_preference
+
         if new_remaining_iterations is not None:
             if new_remaining_iterations < self.ith:
                 self.ith = new_remaining_iterations
@@ -609,16 +513,19 @@ class Nautilus(InteractiveMethodBase):
                 raise InteractiveMethodError(msg)
 
         if not step_back:
-            # Advnce the current iteration
-            self.ith -= 1
-            self.h += 1
+            self.__step_back = False
+            # Advance the current iteration, if not the first iteration
+            if self.itn != self.ith:
+                self.ith -= 1
+                self.h += 1
 
             if self.ith == 1:
                 # Terminate and return the solution
                 return (self.xs[self.h], self.fs[self.h])
 
         else:
-            # Taking a step backwards, do nothing
-            pass
+            self.__step_back = True
+
+        self.__short_step = short_step
 
         return self.ith

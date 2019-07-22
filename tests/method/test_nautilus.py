@@ -1,202 +1,84 @@
 import numpy as np
-import pytest
-from pytest import approx
 
-from desdeo.methods.Nautilus import InteractiveMethodError, Nautilus
+from desdeo.methods.Nautilus import Nautilus
 
 
 def test_nautilus_initialization(RiverPollutionProblem):
     problem = RiverPollutionProblem
     method = Nautilus(problem)
-    # dont compute ideal and nadir
-    method.problem.nadir = 1
-    method.problem.ideal = 1
+    res = method.initialize(10)
 
-    init_reqs = method.initialization_requirements[0]
-
-    # Test that the caller works
-    assert method.itn == 0
-    init_reqs[2](method, 5)
-    assert method.itn == 5
-
-    # Test initializer
-    init_pars = {init_reqs[0]: 20}
-    method.initialize(initialization_parameters=init_pars)
-    assert method.itn == 20
-
-    # Test bad init pars
-    init_pars_bad_key = {"Wrong key": 10}
-    with pytest.raises(InteractiveMethodError):
-        method.initialize(initialization_parameters=init_pars_bad_key)
-
-    # Test wrong type
-    init_pars_wrong_type = {init_reqs[0]: "14"}
-    with pytest.raises(InteractiveMethodError):
-        method.initialize(initialization_parameters=init_pars_wrong_type)
-
-    # Test negatigve
-    init_pars_neg_iters = {init_reqs[0]: -1}
-    with pytest.raises(InteractiveMethodError):
-        method.initialize(initialization_parameters=init_pars_neg_iters)
-
-    # Test direct specification
-    itn = 42
-    method.initialize(itn=itn)
-    assert method.itn == 42
-
-
-def test_nautilus_initialization_ideal_and_nadir(RiverPollutionProblem):
-    problem = RiverPollutionProblem
-    method = Nautilus(problem)
-    expected_ideal = np.array([-6.34, -3.44, -7.50, 0.0])
-
-    assert method.problem.ideal is None
-    assert method.problem.nadir is None
-
-    # Both missing
-    method.initialize(initialization_parameters={"Number of iterations": 5})
-
-    assert np.all(
-        np.isclose(method.problem.ideal, expected_ideal, rtol=0, atol=0.1)
-    )
-    assert np.all(np.greater(method.problem.nadir, method.problem.ideal))
-
-    # Ideal missing
-    method.problem.ideal = None
-    assert method.problem.ideal is None
-    method.initialize(initialization_parameters={"Number of iterations": 5})
-
-    assert np.all(
-        np.isclose(method.problem.ideal, expected_ideal, rtol=0, atol=0.1)
-    )
-    assert np.all(np.greater(method.problem.nadir, method.problem.ideal))
-
-    # Nadir missing
-    method.problem.nadir = None
-    assert method.problem.nadir is None
-    method.initialize(initialization_parameters={"Number of iterations": 5})
-
-    assert np.all(
-        np.isclose(method.problem.ideal, expected_ideal, rtol=0, atol=0.1)
-    )
-    assert np.all(np.greater(method.problem.nadir, method.problem.ideal))
-
-
-def test_nautilus_iterations_setter(RiverPollutionProblem):
-    method = Nautilus(RiverPollutionProblem)
-
-    method.itn = 10
     assert method.itn == 10
 
-    with pytest.raises(InteractiveMethodError):
-        method.itn = -5
+    assert len(method.problem.ideal) == 4
+    assert len(method.problem.nadir) == 4
+
+    assert method.h == 1
+    assert method.ith == method.itn
+
+    assert len(method.zs) == method.itn
+    assert np.all(np.isclose(method.zs[0], method.problem.nadir))
+
+    assert len(method.lower_bounds) == method.itn
+    assert np.all(np.isclose(method.lower_bounds[1], method.problem.ideal))
+
+    assert len(method.upper_bounds) == method.itn
+    assert np.all(np.isclose(method.upper_bounds[1], method.problem.nadir))
+
+    assert len(method.xs) == method.itn
+    assert len(method.fs) == method.itn
+    assert len(method.ds) == method.itn
+
+    assert np.all(np.isclose(method.asf.nadir_point, method.problem.nadir))
+    assert np.all(np.isclose(method.asf.utopian_point, method.problem.ideal))
+
+    assert np.all(np.isclose(res, method.problem.nadir))
 
 
-def test_nautilus_index_setter(RiverPollutionProblem):
-    method = Nautilus(RiverPollutionProblem)
-
-    method.preference_index_set = np.array([1, 2, 2, 3])
-    assert np.all(method.preference_index_set == np.array([1, 2, 2, 3]))
-
-    with pytest.raises(InteractiveMethodError):
-        method.preference_index_set = np.array([1, 2])
-
-
-def test_nautilus_percentage_setter(RiverPollutionProblem):
-    method = Nautilus(RiverPollutionProblem)
-
-    method.preference_percentages = np.array([25, 10, 10, 55])
-    assert np.all(
-        np.isclose(method.preference_percentages, np.array([25, 10, 10, 55]))
-    )
-
-    # wrong length
-    with pytest.raises(InteractiveMethodError):
-        method.preference_percentages = np.array([25, 25, 50])
-
-    # bad sum
-    with pytest.raises(InteractiveMethodError):
-        method.preference_percentages = np.array([25, 20, 50, 25])
-
-
-def test_nautilus_iterate_preference(NautilusInitializedRiver):
+def test_calculate_iteration_point(NautilusInitializedRiver):
     method = NautilusInitializedRiver
-    method.problem.ideal = np.array([0.2, 0.3, 0.1, 0.5])
-    method.problem.nadir = np.array([20, 30, 10, 50])
 
-    # test dict, relative
-    pref_dict_rel = {"Relative importance": np.array([1, 1, 2, 3])}
-    method.iterate(preference_information=pref_dict_rel)
-    assert np.all(method.preference_index_set == np.array([1, 1, 2, 3]))
+    assert method.h == 1
 
-    # test dict, percentage
-    pref_dict_per = {"Percentages": np.array([25, 25, 25, 25])}
-    method.iterate(preference_information=pref_dict_per)
-    assert np.all(
-        np.isclose(method.preference_percentages, np.array([25, 25, 25, 25]))
-    )
+    assert method.ith == 5
+    ith = 5
 
-    # test named parameter, relative
-    method.iterate(index_set=np.array([1, 2, 3, 3]))
-    assert np.all(method.preference_index_set == np.array([1, 2, 3, 3]))
+    assert method.zs[method.h - 1] is not None
+    z_prev = np.array([2.5, -3.4, 5, 12])
+    method.zs[method.h - 1] = z_prev
 
-    # test named paramter, percentage
-    method.iterate(percentages=np.array([10, 20, 40, 30]))
-    assert np.all(
-        np.isclose(method.preference_percentages, np.array([10, 20, 40, 30]))
-    )
+    assert method.zs[method.h] is None
 
-    # test bad
-    with pytest.raises(InteractiveMethodError):
-        dict_bad = {"Bad value": "hello"}
-        method.iterate(preference_information=dict_bad)
+    assert method.fs[method.h] is None
+    f_h = np.array([1.1, -5.2, 1, 8])
+    method.fs[method.h] = f_h
+
+    expected = ((ith - 1) / (ith)) * z_prev + (1 / (ith)) * f_h
+
+    actual = method._calculate_iteration_point()
+    np.all(np.isclose(expected, actual))
 
 
-def test_nautilus_iterate_index_set(RiverPollutionProblem):
-    problem = RiverPollutionProblem
-    problem.ideal = np.array([0.2, 0.3, 0.1, 0.5])
-    problem.nadir = np.array([20, 30, 10, 50])
-    method = Nautilus(problem)
-    method.epsilon = 0.1
-
-    method.initialize()
-    method.iterate(index_set=np.array([1, 2, 2, 4]))
-
-    mu = method.preferential_factors
-
-    assert mu[0] == approx(1 / (1 * (20 - (0.2 - 0.1))))
-    assert mu[1] == approx(1 / (2 * (30 - (0.3 - 0.1))))
-    assert mu[2] == approx(1 / (2 * (10 - (0.1 - 0.1))))
-    assert mu[3] == approx(1 / (4 * (50 - (0.5 - 0.1))))
-
-
-def test_nautilus_iterate_percentages(RiverPollutionProblem):
-    problem = RiverPollutionProblem
-    problem.ideal = np.array([0.2, 0.3, 0.1, 0.5])
-    problem.nadir = np.array([20, 30, 10, 50])
-    method = Nautilus(problem)
-    method.epsilon = 0.1
-
-    method.initialize()
-    method.iterate(percentages=np.array([20, 25, 15, 40]))
-
-    mu = method.preferential_factors
-
-    assert mu[0] == approx(1 / ((20 / 100) * (20 - (0.2 - 0.1))))
-    assert mu[1] == approx(1 / ((25 / 100) * (30 - (0.3 - 0.1))))
-    assert mu[2] == approx(1 / ((15 / 100) * (10 - (0.1 - 0.1))))
-    assert mu[3] == approx(1 / ((40 / 100) * (50 - (0.5 - 0.1))))
-
-
-@pytest.mark.snipe
-def test_nautilus_iterate_first_point(NautilusInitializedRiver):
+def test_calculate_distance(NautilusInitializedRiver):
     method = NautilusInitializedRiver
-    res = method.iterate(index_set=np.array([2, 2, 1, 1]))
 
-    objective = method.fs[1]
-    solution = method.xs[1]
+    assert method.h == 1
+    h = 1
 
-    evaluated = method.problem.evaluate(solution)[0][0]
+    assert method.zs[h] is None
+    assert method.fs[h] is None
+    assert method.problem.nadir is not None
 
-    assert np.all(np.isclose(objective, evaluated))
-    print(res)
+    z_h = np.array([2.5, 3.5, 5.0, -4.2])
+    method.zs[h] = z_h
+
+    f_h = np.array([1.5, 2.7, 4.5, -5.4])
+    method.fs[h] = f_h
+
+    nadir = np.array([10, 20, 30, 15])
+    method.problem.nadir = nadir
+
+    expected = 100 * np.linalg.norm(z_h - nadir) / np.linalg.norm(f_h - nadir)
+    actual = method._calculate_distance()
+
+    assert np.all(np.isclose(expected, actual))
