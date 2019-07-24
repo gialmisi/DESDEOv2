@@ -45,7 +45,7 @@ main () {
 
     # Check tests with pytest
     printf "${GREEN}Running all tests with pytest...\n${NC}"
-    pytest --quiet > /dev/null
+    pytest --quiet --reruns 5 > /dev/null
     [ $? -eq 0 ] && : || \
 	    { printf "${BRED}CRITICAL! ${RED}NOT ALL TESTS PASS!!!${NC}\n"; \
 	      ALL_GOOD=false; }

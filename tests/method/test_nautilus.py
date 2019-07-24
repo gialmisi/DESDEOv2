@@ -1,11 +1,9 @@
 import numpy as np
-
 import pytest
 from pytest import approx
 
-
-from desdeo.methods.Nautilus import Nautilus
 from desdeo.methods.InteractiveMethod import InteractiveMethodError
+from desdeo.methods.Nautilus import Nautilus
 
 
 def test_calculate_iteration_point(NautilusInitializedRiver):
@@ -35,18 +33,14 @@ def test_calculate_iteration_point(NautilusInitializedRiver):
 def test_calculate_distance(NautilusInitializedRiver):
     method = NautilusInitializedRiver
 
-    assert method.h == 1
-    h = 1
-
-    assert method.zs[h] is None
-    assert method.fs[h] is None
-    assert method.problem.nadir is not None
+    assert method.h == 0
+    h = 0
 
     z_h = np.array([2.5, 3.5, 5.0, -4.2])
-    method.zs[h] = z_h
+    method.zs[h + 1] = z_h
 
     f_h = np.array([1.5, 2.7, 4.5, -5.4])
-    method.fs[h] = f_h
+    method.fs[h + 1] = f_h
 
     nadir = np.array([10, 20, 30, 15])
     method.problem.nadir = nadir
@@ -122,21 +116,21 @@ def test_nautilus_initialization(RiverPollutionProblem):
     assert len(method.problem.ideal) == 4
     assert len(method.problem.nadir) == 4
 
-    assert method.h == 1
+    assert method.h == 0
     assert method.ith == method.itn
 
-    assert len(method.zs) == method.itn
+    assert len(method.zs) == method.itn + 1
     assert np.all(np.isclose(method.zs[0], method.problem.nadir))
 
-    assert len(method.lower_bounds) == method.itn
-    assert np.all(np.isclose(method.lower_bounds[1], method.problem.ideal))
+    assert len(method.lower_bounds) == method.itn + 1
+    assert np.all(np.isclose(method.lower_bounds[0], method.problem.ideal))
 
-    assert len(method.upper_bounds) == method.itn
-    assert np.all(np.isclose(method.upper_bounds[1], method.problem.nadir))
+    assert len(method.upper_bounds) == method.itn + 1
+    assert np.all(np.isclose(method.upper_bounds[0], method.problem.nadir))
 
-    assert len(method.xs) == method.itn
-    assert len(method.fs) == method.itn
-    assert len(method.ds) == method.itn
+    assert len(method.xs) == method.itn + 1
+    assert len(method.fs) == method.itn + 1
+    assert len(method.ds) == method.itn + 1
 
     assert np.all(np.isclose(method.asf.nadir_point, method.problem.nadir))
     assert np.all(np.isclose(method.asf.utopian_point, method.problem.ideal))
@@ -150,8 +144,6 @@ def test_nautilus_initialization(RiverPollutionProblem):
         )
     )
 
-    print(z)
-
 
 def test_nautilus_interact_after_initialization(NautilusInitializedRiver):
     method = NautilusInitializedRiver
@@ -159,25 +151,25 @@ def test_nautilus_interact_after_initialization(NautilusInitializedRiver):
 
     # current iteration and iterations left should not change on first interact
     res = method.interact(percentages=percentages)
-    assert method.h == 1
+    assert method.h == 0
     assert method.ith == 5
     assert res == 5
 
     # on other iterations, h should increase and ith should decrease by one
     method.ith = 4
     res = method.interact(percentages=percentages)
-    assert method.h == 2
+    assert method.h == 1
     assert method.ith == 3
     assert res == 3
 
     # on last iteration, return the decision variables and objectives
     # of the final solution
-    method.ith = 2
+    method.ith = 1
     res = method.interact(percentages=percentages)
     assert res == (None, None)
 
 
-@pytest.mark.snipe
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_nautilus_iterate(RiverPollutionProblem):
     """Iterat once and compare the results to the example in the original
     article
@@ -209,7 +201,7 @@ def test_nautilus_iterate(RiverPollutionProblem):
     assert np.all(np.isclose(z1, z1_article, atol=0.1))
     assert np.all(np.isclose(f1, f1_article, atol=0.1))
     assert np.all(np.isclose(z2_lo, z2_lo_article, atol=0.1))
-    assert dist1 == approx(100/3)
+    assert dist1 == approx(100 / 3)
 
     # second interaction
     remaining = method.interact(use_previous_preference=True)
@@ -228,7 +220,7 @@ def test_nautilus_iterate(RiverPollutionProblem):
     assert np.all(np.isclose(z2, z2_article, atol=0.1))
     assert np.all(np.isclose(f2, f2_article, atol=0.1))
     assert np.all(np.isclose(z3_lo, z3_lo_article, atol=0.1))
-    assert dist2 == approx(2*100/3)
+    assert dist2 == approx(2 * 100 / 3)
 
     # third interaction
     index_set = np.array([2, 3, 1, 4])
@@ -270,3 +262,28 @@ def test_nautilus_iterate(RiverPollutionProblem):
     assert np.all(np.isclose(f4, f4_article, atol=0.1))
     assert np.all(np.equal(z5_lo, None))
     assert dist4 == approx(100, abs=1)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_nautilus_short_step(NautilusInitializedRiver):
+    method = NautilusInitializedRiver
+    percentages = np.array([20, 20, 30, 30])
+
+    method.interact(percentages=percentages)
+    z1, bounds1, dist1 = method.iterate()
+
+    method.interact(use_previous_preference=True)
+    z2, bounds2, dist2 = method.iterate()
+    low2 = np.array([low for (low, _) in bounds2])
+    high2 = np.array([high for (_, high) in bounds2])
+
+    method.interact(step_back=True, short_step=True)
+    z3, bounds3, dist3 = method.iterate()
+    low3 = np.array([low for (low, _) in bounds3])
+    high3 = np.array([high for (_, high) in bounds3])
+
+    assert np.all(np.isclose(0.5 * z1 + 0.5 * z2, z3))
+    # The high bounds shouldn't change, it's always the nadir
+    assert np.all(np.isclose(high2, high3))
+    assert np.all(low2 > low3)
+    assert dist2 > dist3

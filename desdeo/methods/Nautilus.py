@@ -65,7 +65,7 @@ class Nautilus(InteractiveMethodBase):
         self.__asf: ReferencePointASF = ReferencePointASF(None, None, None)
         self.__scalar_solver.asf = self.__asf
 
-        self.__epsilon_solver: EpsilonConstraintScalarSolver = EpsilonConstraintScalarSolver(
+        self.__epsilon_solver: EpsilonConstraintScalarSolver = EpsilonConstraintScalarSolver(  # noqa: E501
             self.problem
         )
 
@@ -121,6 +121,17 @@ class Nautilus(InteractiveMethodBase):
 
     @ith.setter
     def ith(self, val: int):
+        """Set the number of remaining iterations. Should be less than the current
+        remaining iterations
+
+        Arguments:
+            val (int): New number of iterations to carry out.
+
+        Raises:
+            InteractiveMethodError: val is either negative or greater than the
+            current number of remaining iterations.
+
+        """
         if val < 0:
             msg = (
                 "The given number of iterations left "
@@ -250,7 +261,7 @@ class Nautilus(InteractiveMethodBase):
             val (np.ndarray): A 1D-vector containing percentages corresponding
             to each objective.
 
-        Raise:
+        Raises:
             InteractiveMethod: The lenght of the prcentages vector does not
             match the number of objectives in the problem.
 
@@ -289,7 +300,11 @@ class Nautilus(InteractiveMethodBase):
         self.__asf = val
 
     def _calculate_iteration_point(self) -> np.ndarray:
-        """Calculate and store a new iteration point.
+        """Calculate the new iteration point based on the current iteration's
+        iteration point and pareto optimal solution.
+
+        Returns:
+            np.ndarray: New iteration point
 
         """
         # Number of iterations left. The plus one is to ensure the current
@@ -303,8 +318,12 @@ class Nautilus(InteractiveMethodBase):
         return z_h
 
     def _calculate_distance(self) -> float:
-        """Calculate and store the distance to the pareto set for the current
-        iteration
+        """Calculate the distance to the pareto optimal front in the current
+        iteration.
+
+        Returns:
+            float: The distance to the pareto front ranging from 0-100, 100
+            being the closest distance to the front.
 
         """
         ds = 100 * (
@@ -318,7 +337,7 @@ class Nautilus(InteractiveMethodBase):
     ) -> Tuple[np.ndarray, List[Tuple[float, float]], float]:
         """Initialize the method by setting the initialization parameters and
         caluclating the initial bounds of the problem, the nadir and ideal
-        point, if not defined in the problem. See initialization_requirements.
+        point, if not defined in the problem.
 
         Arguments:
             itn (int): Number of total iterations. Defaults to 5.
@@ -331,10 +350,6 @@ class Nautilus(InteractiveMethodBase):
                 and upper bounds for the next iteration
                 float: The distance of the current iteration point to the
                 pareto optimal set.
-
-        Raises:
-            InteractiveMethodError: Wrong type of parameter or missing
-            parameter in initialization_requirements.
 
         """
         self.itn = itn
@@ -384,7 +399,8 @@ class Nautilus(InteractiveMethodBase):
         )
 
     def iterate(self) -> Tuple[np.ndarray, List[Tuple[float, float]], float]:
-        """Iterate once according to the user preference.
+        """Iterate once according to the user preference given in the
+        interaction phase.
 
         Returns:
             Tuple[np.ndarray, List[Tuple[float, float]], float]: A tuple
@@ -395,7 +411,15 @@ class Nautilus(InteractiveMethodBase):
                 float: The distance of the current iteration point to the
                 pareto optimal set.
 
+        Raises:
+            InteractiveMethodError: If the preferential factors can't be
+            computed
+
         Note:
+            The current iteration is to be interpreted as self.h + 1, since
+            incrementation of the current iteration happens in the interaction
+            phase.
+
             If both the relative importance and percentages are defined,
             percentages are used.
 
@@ -512,8 +536,35 @@ class Nautilus(InteractiveMethodBase):
         step_back: bool = False,
         short_step: bool = False,
     ) -> Union[int, Tuple[np.ndarray, np.ndarray]]:
-        """Change the total number of iterations if supplied and take a step
-        backwards if the DM wishes to do so.
+        """Handle user preference and set appropiate flags for the next iteration.
+
+        Arguments:
+            index_set (np.ndarray): An array with integers describing the
+            relative importance of each objective. The integers vary between 1
+            and the maximum number of objectives in the problem.
+            percentages (np.ndarray): Percentages describing the absolute
+            importance of each objective. The sum of these must equal 100.
+            use_previous_preference (bool): Use the preference
+            infromation. Cannot be true during the first iteration.
+            defined in the last iteration. Defaults to false.
+            new_remaining_iterations (int): Set a new number of remaining
+            iterations to be carried. Must be positive and not exceed the
+            current number of iterations left.
+            step_back (bool): Step from the previous point in the next
+            iteration. Cannot step back from first iteration.
+            short_step (bool): When step_back, take a shorter step in the same
+            direction as in the previous iteration from the previous
+            iteration's iteration point. Can only short step when stepping
+            back.
+
+        Returns:
+            Union[int, Tuple[np.ndarray, np.ndarray]]: The number of remaining
+            iteration. If this function is envoked after the last iteration,
+            returns a tuple with the optimal solution and objective values.
+
+        Raises:
+            InteractiveMethodError: Some of the arguments are not set
+            correctly. See the documentation for the arguments.
 
         """
         if index_set is not None:
@@ -527,11 +578,12 @@ class Nautilus(InteractiveMethodBase):
         elif self.mu is not None and use_previous_preference:
             self.__use_previous_preference = use_previous_preference
 
+        elif step_back and short_step:
+            # no preference needed for short step
+            pass
+
         else:
-            msg = (
-                "Cannot use preferential infromation from previous "
-                "iteration."
-            )
+            msg = "Cannot figure out preference infromation."
             logger.debug(msg)
             raise InteractiveMethodError(msg)
 
