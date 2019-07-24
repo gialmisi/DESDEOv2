@@ -57,7 +57,7 @@ class Nautilus(InteractiveMethodBase):
         self.__ds: List[float] = []  # distances for each iteration
         self.__preference_index_set: np.ndarray = None
         self.__preference_percentages: np.ndarray = None
-        self.__mus: np.ndarray = np.zeros(  # current preferential factors
+        self.__mu: np.ndarray = np.zeros(  # current preferential factors
             self.problem.n_of_objectives
         )
 
@@ -68,6 +68,12 @@ class Nautilus(InteractiveMethodBase):
         self.__epsilon_solver: EpsilonConstraintScalarSolver = EpsilonConstraintScalarSolver(
             self.problem
         )
+
+        # flags for the iteration phase
+        self.__use_previous_preference: bool = False
+        self.__step_back: bool = False
+        self.__short_step: bool = False
+        self.__first_iteration: bool = True
 
     @property
     def epsilon(self) -> float:
@@ -94,8 +100,8 @@ class Nautilus(InteractiveMethodBase):
         """
         if val < 0:
             msg = (
-                "The number of iterations '{}' "
-                "should be positive.".format(str(val))
+                "The number of total iterations "
+                "should be positive. Given iterations '{}'".format(str(val))
             )
             logger.debug(msg)
             raise InteractiveMethodError(msg)
@@ -115,6 +121,21 @@ class Nautilus(InteractiveMethodBase):
 
     @ith.setter
     def ith(self, val: int):
+        if val < 0:
+            msg = (
+                "The given number of iterations left "
+                "should be positive. Given iterations '{}'".format(str(val))
+            )
+            logger.debug(msg)
+            raise InteractiveMethodError(msg)
+
+        elif val > self.__ith:
+            msg = (
+                "The given number of iterations '{}' left should be less "
+                "than the current number of iterations left '{}'"
+            ).format(val, self.__ith)
+            logger.debug(msg)
+            raise InteractiveMethodError(msg)
         self.__ith = val
 
     @property
@@ -174,12 +195,12 @@ class Nautilus(InteractiveMethodBase):
         self.__ds = val
 
     @property
-    def mus(self) -> np.ndarray:
-        return self.__mus
+    def mu(self) -> np.ndarray:
+        return self.__mu
 
-    @mus.setter
-    def mus(self, val: np.ndarray):
-        self.__mus = val
+    @mu.setter
+    def mu(self, val: np.ndarray):
+        self.__mu = val
 
     @property
     def preference_index_set(self) -> np.ndarray:
@@ -236,8 +257,8 @@ class Nautilus(InteractiveMethodBase):
         """
         if len(val) != self.problem.n_of_objectives:
             msg = (
-                "The number of percentages '{}' does not match the number "
-                "of objectives '{}'"
+                "The number of given percentages '{}' does not match the "
+                "number of objectives '{}'"
             ).format(len(val), self.problem.n_of_objectives)
             logger.debug(msg)
             raise InteractiveMethodError(msg)
@@ -250,14 +271,6 @@ class Nautilus(InteractiveMethodBase):
             raise InteractiveMethodError(msg)
 
         self.__preference_percentages = val
-
-    @property
-    def preferential_factors(self) -> np.ndarray:
-        return self.mus
-
-    @preferential_factors.setter
-    def preferential_factors(self, val: np.ndarray):
-        self.mus = val
 
     @property
     def scalar_solver(self) -> ASFScalarSolver:
@@ -282,8 +295,8 @@ class Nautilus(InteractiveMethodBase):
         # Number of iterations left. The plus one is to ensure the current
         # iteration is also counted.
         ith = self.ith
-        z_prev = self.zs[self.h - 1]  # == z_h-1
-        f_h = self.fs[self.h]
+        z_prev = self.zs[self.h]  # == from previous step
+        f_h = self.fs[self.h + 1]  # current step
 
         z_h = ((ith - 1) / (ith)) * z_prev + (1 / (ith)) * f_h
 
@@ -295,12 +308,14 @@ class Nautilus(InteractiveMethodBase):
 
         """
         ds = 100 * (
-            np.linalg.norm(self.zs[self.h] - self.problem.nadir)
-            / (np.linalg.norm(self.fs[self.h] - self.problem.nadir))
+            np.linalg.norm(self.zs[self.h + 1] - self.problem.nadir)
+            / (np.linalg.norm(self.fs[self.h + 1] - self.problem.nadir))
         )
         return ds
 
-    def initialize(self, itn: int = 5) -> np.ndarray:
+    def initialize(
+        self, itn: int = 5
+    ) -> Tuple[np.ndarray, List[Tuple[float, float]], float]:
         """Initialize the method by setting the initialization parameters and
         caluclating the initial bounds of the problem, the nadir and ideal
         point, if not defined in the problem. See initialization_requirements.
@@ -309,7 +324,13 @@ class Nautilus(InteractiveMethodBase):
             itn (int): Number of total iterations. Defaults to 5.
 
         Returns:
-            np.ndarray: The first iteration point
+            Tuple[np.ndarray, List[Tuple[float, float]], float]: A tuple
+            containing:
+                np.ndarray: The current iteration point.
+                List[Tuple[float, float]]: A list with tuples with the lower
+                and upper bounds for the next iteration
+                float: The distance of the current iteration point to the
+                pareto optimal set.
 
         Raises:
             InteractiveMethodError: Wrong type of parameter or missing
@@ -334,28 +355,33 @@ class Nautilus(InteractiveMethodBase):
             solver = IdealAndNadirPointSolver(self.problem)
             _, self.problem.nadir = solver.solve()
 
-        self.h = 1
-        self.ith = self.itn
+        self.h = 0
+        # Skip the checks in the setter of ith
+        self.__ith = self.itn
 
-        self.zs = [None] * self.itn
+        self.zs = [None] * (self.itn + 1)
         self.zs[0] = self.problem.nadir
 
-        self.lower_bounds = [None] * self.itn
+        self.lower_bounds = [None] * (self.itn + 1)
         self.lower_bounds[self.h] = self.problem.ideal
 
-        self.upper_bounds = [None] * self.itn
+        self.upper_bounds = [None] * (self.itn + 1)
         self.upper_bounds[self.h] = self.problem.nadir
 
-        self.xs = [None] * self.itn
+        self.xs = [None] * (self.itn + 1)
 
-        self.fs = [None] * self.itn
+        self.fs = [None] * (self.itn + 1)
 
-        self.ds = [0.0] * self.itn
+        self.ds = [0.0] * (self.itn + 1)
 
         self.asf.nadir_point = self.problem.nadir
         self.asf.utopian_point = self.problem.ideal - self.epsilon
 
-        return self.zs[0]
+        return (
+            self.zs[self.h],
+            list(zip(self.lower_bounds[self.h], self.upper_bounds[self.h])),
+            self.ds[self.h],
+        )
 
     def iterate(self) -> Tuple[np.ndarray, List[Tuple[float, float]], float]:
         """Iterate once according to the user preference.
@@ -374,30 +400,16 @@ class Nautilus(InteractiveMethodBase):
             percentages are used.
 
         """
-        if self.__step_back:
-            if self.h == 1:
-                msg = "Cannot take a backwards step on the first iteration."
-                logger.debug(msg)
-                raise InteractiveMethodError(msg)
-
-        if not self.__step_back and self.__short_step:
-            msg = (
-                "Can take a short step only when stepping from the "
-                "previous point."
-            )
-            logger.debug(msg)
-            raise InteractiveMethodError(msg)
-
         # Calculate the preferential factors or use existing ones
         if not self.__short_step:
             if self.preference_percentages is not None:
                 # use percentages to calcualte the new iteration point
                 delta_q = self.preference_percentages / 100
-                self.preferential_factors = 1 / (
+                self.mu = 1 / (
                     delta_q
                     * (
                         self.problem.nadir
-                        - (self.problem.ideal - self.__epsilon)
+                        - (self.problem.ideal - self.epsilon)
                     )
                 )
 
@@ -405,16 +417,16 @@ class Nautilus(InteractiveMethodBase):
                 # Use the relative importance to calcualte the new points
                 print(self.preference_index_set)
                 for (i, r) in enumerate(self.preference_index_set):
-                    self.preferential_factors[i] = 1 / (
+                    self.mu[i] = 1 / (
                         r
                         * (
                             self.problem.nadir[i]
-                            - (self.problem.ideal[i] - self.__epsilon)
+                            - (self.problem.ideal[i] - self.epsilon)
                         )
                     )
 
-            elif self.preferential_factors is not None:
-                # use existing factors
+            elif self.__use_previous_preference:
+                # previous
                 pass
 
             else:
@@ -425,58 +437,70 @@ class Nautilus(InteractiveMethodBase):
         if not self.__short_step and not self.__use_previous_preference:
             # Take a normal step and calculate a new reference point
             # set the current iteration point as the reference point
-            self.q = self.zs[self.h - 1]
+            self.q = self.zs[self.h]
 
             # set the preferential factors in the underlaying asf
-            self.asf.preferential_factors = self.preferential_factors
+            self.asf.preferential_factors = self.mu
 
             # solve the ASF
             (solution, (objective, _)) = self.scalar_solver.solve(self.q)
 
             # Store the solution and corresponding objective vector
-            self.xs[self.h] = solution
-            self.fs[self.h] = objective[0]
+            self.xs[self.h + 1] = solution
+            self.fs[self.h + 1] = objective[0]
 
             # calculate a new iteration point
-            self.zs[self.h] = self._calculate_iteration_point()
+            self.zs[self.h + 1] = self._calculate_iteration_point()
 
         elif not self.__step_back and self.__use_previous_preference:
             # Use the solution and objective of the last step
-            self.xs[self.h] = self.xs[self.h - 1]
-            self.fs[self.h] = self.fs[self.h - 1]
-            self.zs[self.h] = self._calculate_iteration_point()
+            self.xs[self.h + 1] = self.xs[self.h]
+            self.fs[self.h + 1] = self.fs[self.h]
+            self.zs[self.h + 1] = self._calculate_iteration_point()
 
         else:
             # Take a short step
             # Update the current iteration point
-            self.zs[self.h] = 0.5 * self.zs[self.h] + 0.5 * self.zs[self.h - 1]
+            self.zs[self.h + 1] = (
+                0.5 * self.zs[self.h + 1] + 0.5 * self.zs[self.h]
+            )
 
         # calculate the lower bounds for the next iteration
-        self.__lower_bounds[self.h + 1] = np.zeros(
-            self.problem.n_of_objectives
-        )
+        if self.ith > 1:
+            # last iteration, no need to calculate these
+            self.lower_bounds[self.h + 1] = np.zeros(
+                self.problem.n_of_objectives
+            )
 
-        self.__epsilon_solver.epsilons = self.zs[self.h]
+            self.__epsilon_solver.epsilons = self.zs[self.h + 1]
 
-        for r in range(self.problem.n_of_objectives):
-            (_, (objective, _)) = self.__epsilon_solver.solve(r)
-            self.__lower_bounds[self.h + 1][r] = objective[0][r]
+            for r in range(self.problem.n_of_objectives):
+                (_, (objective, _)) = self.__epsilon_solver.solve(r)
+                self.lower_bounds[self.h + 1][r] = objective[0][r]
 
-            # set the upper bounds
-            self.__upper_bounds[self.h + 1] = self.zs[self.h]
+                # set the upper bounds
+                self.upper_bounds[self.h + 1] = self.zs[self.h]
+
+        else:
+            self.lower_bounds[self.h + 1] = [
+                None
+            ] * self.problem.n_of_objectives
+            self.upper_bounds[self.h + 1] = [
+                None
+            ] * self.problem.n_of_objectives
 
         # Calculate the distance to the pareto optimal set
-        self.ds[self.h] = self._calculate_distance()
+        self.ds[self.h + 1] = self._calculate_distance()
 
         return (
-            self.zs[self.h],
+            self.zs[self.h + 1],
             list(
                 zip(
-                    self.__lower_bounds[self.h + 1],
-                    self.__upper_bounds[self.h + 1],
+                    self.lower_bounds[self.h + 1],
+                    self.upper_bounds[self.h + 1],
                 )
             ),
-            self.ds[self.h],
+            self.ds[self.h + 1],
         )
 
     def interact(
@@ -494,38 +518,54 @@ class Nautilus(InteractiveMethodBase):
         """
         if index_set is not None:
             self.preference_index_set = index_set
+            self.__use_previous_preference = False
 
-        if percentages is not None:
+        elif percentages is not None:
             self.preference_percentages = percentages
+            self.__use_previous_preference = False
 
-        self.__use_previous_preference = use_previous_preference
+        elif self.mu is not None and use_previous_preference:
+            self.__use_previous_preference = use_previous_preference
+
+        else:
+            msg = (
+                "Cannot use preferential infromation from previous "
+                "iteration."
+            )
+            logger.debug(msg)
+            raise InteractiveMethodError(msg)
 
         if new_remaining_iterations is not None:
-            if new_remaining_iterations < self.ith:
-                self.ith = new_remaining_iterations
-            else:
-                msg = (
-                    "Bad number of new remaining iterations '{}'. Should "
-                    "be less or equal to the current number of remaining "
-                    "iterations '{}'."
-                ).format(new_remaining_iterations, self.ith)
-                logger.debug(msg)
-                raise InteractiveMethodError(msg)
+            self.ith = new_remaining_iterations
 
         if not step_back:
             self.__step_back = False
             # Advance the current iteration, if not the first iteration
-            if self.itn != self.ith:
+            if not self.__first_iteration:
                 self.ith -= 1
                 self.h += 1
+            else:
+                self.__first_iteration = False
 
-            if self.ith == 1:
-                # Terminate and return the solution
+            if self.ith == 0:
+                # Last iteration, terminate the solution
                 return (self.xs[self.h], self.fs[self.h])
 
         else:
+            if self.__first_iteration:
+                msg = "Cannot take a backwards step on the first iteration."
+                logger.debug(msg)
+                raise InteractiveMethodError(msg)
             self.__step_back = True
 
+        if short_step:
+            if not step_back:
+                msg = (
+                    "Can take a short step only when stepping from the "
+                    "previous point."
+                )
+                logger.debug(msg)
+                raise InteractiveMethodError(msg)
         self.__short_step = short_step
 
         return self.ith
