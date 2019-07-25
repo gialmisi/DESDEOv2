@@ -1,8 +1,7 @@
-from desdeo.methods.EvolutionaryMethod import MOEAD, EvolutionaryError
-
 import numpy as np
-
 import pytest
+
+from desdeo.methods.EvolutionaryMethod import MOEAD, EvolutionaryError
 
 
 def test_initialize(RiverPollutionProblem):
@@ -28,8 +27,17 @@ def test_initialize(RiverPollutionProblem):
         method.lambdas = np.ones((method.n, 10))
         method.lambdas = np.ones((method.n, 2))
 
+    assert method.pop.shape == (method.n, method.problem.n_of_objectives)
+    assert np.all(
+        np.isclose(
+            method.pop, np.zeros((method.n, method.problem.n_of_objectives))
+        )
+    )
 
-@pytest.mark.snipe
+    assert method.z.shape == (method.problem.n_of_objectives,)
+    assert np.all(np.isclose(method.z, np.inf))
+
+
 def test_generate_uniform_weights(RiverPollutionProblem):
     problem = RiverPollutionProblem
     method = MOEAD(problem)
@@ -38,4 +46,4 @@ def test_generate_uniform_weights(RiverPollutionProblem):
     method.initialize(10, 3, dummy)
 
     res = method._generate_uniform_set_of_weights()
-    print(res)
+    assert np.all(np.logical_and(0 <= res, res < 1.0))

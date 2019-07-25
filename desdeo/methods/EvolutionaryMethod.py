@@ -1,12 +1,11 @@
 """Define a family of classes that use evolutionary algorithms to solve MOO
 problems for pareto optimal sets"""
 
-from abc import ABC
-from typing import Optional
-from os import path
 import logging
 import logging.config
-
+from abc import ABC
+from os import path
+from typing import List, Optional
 
 import numpy as np
 
@@ -68,6 +67,10 @@ class MOEAD(EvolutionaryMethodBase):
         # The number of weight vectors in the neighborhood of each weight
         # vector
         self.__t: int = 0
+        # Set of non dominated solutions
+        self.__epop: List[np.ndarray] = None
+        self.__pop: np.ndarray = None
+        self.__z: np.ndarray = None
 
     @property
     def n(self) -> int:
@@ -123,6 +126,22 @@ class MOEAD(EvolutionaryMethodBase):
             raise EvolutionaryError(msg)
         self.__t = val
 
+    @property
+    def epop(self) -> List[np.ndarray]:
+        return self.__ep
+
+    @epop.setter
+    def epop(self, val: List[np.ndarray]):
+        self.__ep = val
+
+    @property
+    def z(self) -> np.ndarray:
+        return self.__z
+
+    @z.setter
+    def z(self, val: np.ndarray):
+        self.__z = val
+
     def _generate_uniform_set_of_weights(self) -> np.ndarray:
         """Generate a random linear set of weigh vectors uniformly distributed between
         [0, 1).
@@ -156,3 +175,6 @@ class MOEAD(EvolutionaryMethodBase):
             self.lambdas = weight_vectors
         else:
             self.lambdas = self._generate_uniform_set_of_weights()
+
+        self.pop = np.zeros((self.n, self.problem.n_of_objectives))
+        self.z = np.full(self.problem.n_of_objectives, np.inf)
