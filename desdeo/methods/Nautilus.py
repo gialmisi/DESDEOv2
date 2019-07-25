@@ -32,6 +32,8 @@ logger = logging.getLogger(__file__)
 class Nautilus(InteractiveMethodBase):
     """Implements the basic NAUTILUS methods as presented in `Miettinen 2010`_
 
+    TODO: Add attributes here
+
     .. _Miettinen 2010:
         Miettinen, K.; Eskelinen, P.; Ruiz, F. & Luque, M.
         NAUTILUS method: An interactive technique in multiobjective
