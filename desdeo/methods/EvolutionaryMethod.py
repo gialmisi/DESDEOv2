@@ -10,6 +10,8 @@ from typing import List, Optional
 import numpy as np
 
 from desdeo.problem.Problem import ProblemBase
+from desdeo.utils.frozen import frozen
+
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"
@@ -45,6 +47,7 @@ class EvolutionaryMethodBase(ABC):
         self.__problem = val
 
 
+@frozen(logger)
 class MOEAD(EvolutionaryMethodBase):
     """Implements the algortihm for solving MOO problems using evolutionary
     algorithms based on the decomposition of the problem. Described in `Qingfu
@@ -64,13 +67,17 @@ class MOEAD(EvolutionaryMethodBase):
         super().__init__(problem)
         self.__n: int = 0  # The number of subproblems
         self.__lambdas: np.ndarray = None  # The weight vectors
-        # The number of weight vectors in the neighborhood of each weight
-        # vector
+        # Neighborhood size
         self.__t: int = 0
         # Set of non dominated solutions
-        self.__epop: List[np.ndarray] = None
+        self.__epop: List[np.ndarray] = []
+        # Poulation of the solutions of each subproblem
         self.__pop: np.ndarray = None
+        # Best values found so far for each objective
         self.__z: np.ndarray = None
+        # Contains lists of indices representing the weight vector
+        # neighborhoods for each weight vector
+        self.__b: np.ndarray = None
 
     @property
     def n(self) -> int:
@@ -128,11 +135,24 @@ class MOEAD(EvolutionaryMethodBase):
 
     @property
     def epop(self) -> List[np.ndarray]:
-        return self.__ep
+        return self.__epop
 
     @epop.setter
     def epop(self, val: List[np.ndarray]):
-        self.__ep = val
+        self.__epop = val
+
+    @property
+    def pop(self) -> np.ndarray:
+        return self.__pop
+
+    @pop.setter
+    def pop(self, val: np.ndarray):
+        if val.shape != (self.n, self.problem.n_of_variables):
+            msg = ("The shape of the population must (number of subproblems, "
+                   "number of variables). Given shape '{}'").format(val.shape)
+            logger.debug(msg)
+            raise EvolutionaryError(msg)
+        self.__pop = val
 
     @property
     def z(self) -> np.ndarray:
@@ -142,6 +162,21 @@ class MOEAD(EvolutionaryMethodBase):
     def z(self, val: np.ndarray):
         self.__z = val
 
+    @property
+    def b(self) -> np.ndarray:
+        return self.__b
+
+    @b.setter
+    def b(self, val: np.ndarray):
+        if val.shape != (self.n, self.t):
+            msg = ("The shape of the neighborhoods vector should be (number "
+                   "of subproblems, neighborhood size). "
+                   "Given shape '{}'").format(val.shape)
+            logger.debug(msg)
+            raise EvolutionaryError(msg)
+
+        self.__b = val
+
     def _generate_uniform_set_of_weights(self) -> np.ndarray:
         """Generate a random linear set of weigh vectors uniformly distributed between
         [0, 1).
@@ -149,9 +184,22 @@ class MOEAD(EvolutionaryMethodBase):
         """
         return np.random.uniform(size=(self.n, self.problem.n_of_objectives))
 
+    def _compute_neighborhoods(self) -> np.ndarray:
+        b = np.zeros((self.n, self.t))
+        tmp = np.zeros(self.n)  # hold the distances
+        mask = np.full(self.n, True, dtype=bool)  # Mask out the current weight
+        for (i, lam) in enumerate(self.lambdas):
+            mask[i] = False
+            tmp = np.linalg.norm(lam, self.lambdas[mask])
+            indices = np.argsort(tmp)[:self.t]
+            b[i] = tmp[indices]
+            mask[i] = True
+
+        return b
+
     def initialize(
         self,
-        n_subporblems: int,
+        n_subproblems: int,
         neighborhood_size: int,
         weight_vectors: Optional[np.ndarray] = None,
     ):
@@ -168,7 +216,7 @@ class MOEAD(EvolutionaryMethodBase):
             None, compute a set of random linearly spread weight vectors.
 
         """
-        self.n = n_subporblems
+        self.n = n_subproblems
         self.t = neighborhood_size
 
         if weight_vectors is not None:
@@ -176,5 +224,12 @@ class MOEAD(EvolutionaryMethodBase):
         else:
             self.lambdas = self._generate_uniform_set_of_weights()
 
-        self.pop = np.zeros((self.n, self.problem.n_of_objectives))
+        # Compute the distances between each weight vector and define the
+        # neighborhoods
+        self.b = np.zeros((self.n, self.t))
+
+        # Generate the initial population
+        self.pop = np.zeros((self.n, self.problem.n_of_variables))
+
+        # Initialize the best objective vector to just be infinite
         self.z = np.full(self.problem.n_of_objectives, np.inf)
