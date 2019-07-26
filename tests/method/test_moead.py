@@ -4,8 +4,8 @@ import pytest
 from desdeo.methods.EvolutionaryMethod import MOEAD, EvolutionaryError
 
 
-def test_initialize(RiverPollutionProblem):
-    problem = RiverPollutionProblem
+def test_initialize(CylinderProblem):
+    problem = CylinderProblem
     method = MOEAD(problem)
 
     weights = np.ones((10, problem.n_of_objectives))
@@ -27,17 +27,15 @@ def test_initialize(RiverPollutionProblem):
         method.lambdas = np.ones((method.n, 10))
         method.lambdas = np.ones((method.n, 2))
 
+    assert method.b.shape == (method.n, method.t)
+
     assert method.pop.shape == (method.n, method.problem.n_of_variables)
-    assert np.all(
-        np.isclose(
-            method.pop, np.zeros((method.n, method.problem.n_of_variables))
-        )
-    )
+
+    assert method.fs.shape == (method.n, method.problem.n_of_objectives)
 
     assert method.z.shape == (method.problem.n_of_objectives,)
-    assert np.all(np.isclose(method.z, np.inf))
 
-    assert method.b.shape == (method.n, method.t)
+    # for column in 
 
 
 def test_generate_uniform_weights(RiverPollutionProblem):
@@ -51,22 +49,54 @@ def test_generate_uniform_weights(RiverPollutionProblem):
     assert np.all(np.logical_and(0 <= res, res < 1.0))
 
 
-@pytest.mark.snipe
 def test_compute_neighborhoods():
     method = MOEAD(None)
 
-    n = 10
-    t = 4
+    n = 2000
+    t = 1000
     n_objectives = 3
 
     method.n = n
     method.t = t
-    # skip the checks in the setter since it requires a problem
-    method._MOEAD__lambdas = np.full(
-        (n, n_objectives), np.linspace(1, 3, n_objectives)
-    )
 
-    print(method.lambdas)
+    # Random weights
+    lambdas_rand = np.random.uniform(size=(n, n_objectives))
+    method._MOEAD__lambdas = lambdas_rand
+    b_rand = method._compute_neighborhoods()
 
-    method.x = 5
-    print(method.x)
+    # The neighborhood of each weight should not contain the weight itself the
+    # neighborhood in calculated on
+    assert all((
+        [i not in neighborhood for (i, neighborhood) in enumerate(b_rand)]
+    ))
+
+    # With random weights, we should expect the mean of each neighborhood to be
+    # close to n/2 (since we have t random indices in each neighborhood ranging
+    # between 0 and n-1). Allow for a 2.5% error relative to n.
+    assert np.all(np.isclose(np.mean(b_rand, axis=1), 0.5*n, atol=0.025*n))
+
+
+@pytest.mark.snipe
+def test_generate_feasible_population(CylinderProblem, RiverPollutionProblem):
+    # problem with constraints
+    method = MOEAD(CylinderProblem)
+    method.n = 100
+
+    pop, fs = method._generate_feasible_population()
+    feval, cons = method.problem.evaluate(pop)
+
+    assert pop.shape == (method.n, method.problem.n_of_variables)
+    assert np.all(cons >= 0)
+    assert fs.shape == (method.n, method.problem.n_of_objectives)
+    assert np.all(np.isclose(fs, feval))
+
+    # problem with no constraints
+    method.problem = RiverPollutionProblem
+
+    pop, fs = method._generate_feasible_population()
+    feval, cons = method.problem.evaluate(pop)
+
+    assert pop.shape == (method.n, method.problem.n_of_variables)
+    assert np.all(np.equal(cons, None))
+    assert fs.shape == (method.n, method.problem.n_of_objectives)
+    assert np.all(np.isclose(fs, feval))

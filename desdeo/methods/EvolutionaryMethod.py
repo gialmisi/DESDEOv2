@@ -5,7 +5,7 @@ import logging
 import logging.config
 from abc import ABC
 from os import path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -73,6 +73,8 @@ class MOEAD(EvolutionaryMethodBase):
         self.__epop: List[np.ndarray] = []
         # Poulation of the solutions of each subproblem
         self.__pop: np.ndarray = None
+        # The objective vectors corresponsing to each subproblem
+        self.__fs: np.ndarray = None
         # Best values found so far for each objective
         self.__z: np.ndarray = None
         # Contains lists of indices representing the weight vector
@@ -93,6 +95,14 @@ class MOEAD(EvolutionaryMethodBase):
 
     @lambdas.setter
     def lambdas(self, val: np.ndarray):
+        """Set the weight vectors.
+
+        Arguments:
+            val (np.ndarray): Vector of weight vectors
+
+        Raises:
+            EvolutionaryError: Incorrect dimensions of vector of weights.
+        """
         if len(val) > self.n:
             msg = (
                 "The length of the vector containing the weight vectors "
@@ -123,6 +133,16 @@ class MOEAD(EvolutionaryMethodBase):
 
     @t.setter
     def t(self, val: int):
+        """Set the size of the neighborhoods.
+
+        Arguments:
+            val (int): The size of the neighborhoods.
+
+        Raises:
+            EvolutionaryError: val is bigger that the total number of weight
+            vectors, or it is negative.
+
+        """
         if val > self.n:
             msg = (
                 "The number of weight vectors to be considered part of "
@@ -131,6 +151,12 @@ class MOEAD(EvolutionaryMethodBase):
             ).format(val, self.n)
             logger.debug(msg)
             raise EvolutionaryError(msg)
+
+        elif val < 0:
+            msg = ("The neighborhood size must be positive.")
+            logger.debug(msg)
+            raise EvolutionaryError(msg)
+
         self.__t = val
 
     @property
@@ -147,12 +173,49 @@ class MOEAD(EvolutionaryMethodBase):
 
     @pop.setter
     def pop(self, val: np.ndarray):
+        """Set the population of solution vectors.
+
+        Arguments:
+            val (np.ndarray): Vector containing solutions to the underlying MOO
+            problem.
+
+        Raises:
+            EvolutionaryError: Incorrect shape of val.
+
+        """
         if val.shape != (self.n, self.problem.n_of_variables):
-            msg = ("The shape of the population must (number of subproblems, "
-                   "number of variables). Given shape '{}'").format(val.shape)
+            msg = (
+                "The shape of the population must (number of subproblems, "
+                "number of variables). Given shape '{}'"
+            ).format(val.shape)
             logger.debug(msg)
             raise EvolutionaryError(msg)
         self.__pop = val
+
+    @property
+    def fs(self) -> np.ndarray:
+        return self.__fs
+
+    @fs.setter
+    def fs(self, val: np.ndarray):
+        """Set the vector of objectives that correspond to the solution in the
+        population.
+
+        Arguments:
+            val (np.ndarray): A vector of objective vectors.
+
+        Raises:
+            EvolutionaryError: Incorrect shape of val.
+
+        """
+        if val.shape != (self.n, self.problem.n_of_objectives):
+            msg = (
+                "The shape of the vector containing the objective "
+                "vectors must (number of subproblems, "
+                "number of objectives). Given shape '{}'").format(val.shape)
+            logger.debug(msg)
+            raise EvolutionaryError(msg)
+        self.__fs = val
 
     @property
     def z(self) -> np.ndarray:
@@ -168,10 +231,22 @@ class MOEAD(EvolutionaryMethodBase):
 
     @b.setter
     def b(self, val: np.ndarray):
+        """Set the vector of neighborhood vectors.
+
+        Arguments:
+            val (np.ndarray): A vector of ints representing the neighborhood of
+            each weight vector.
+
+        Raises:
+            EvolutionaryError: Incorrect shape of val.
+
+        """
         if val.shape != (self.n, self.t):
-            msg = ("The shape of the neighborhoods vector should be (number "
-                   "of subproblems, neighborhood size). "
-                   "Given shape '{}'").format(val.shape)
+            msg = (
+                "The shape of the neighborhoods vector should be (number "
+                "of subproblems, neighborhood size). "
+                "Given shape '{}'"
+            ).format(val.shape)
             logger.debug(msg)
             raise EvolutionaryError(msg)
 
@@ -181,27 +256,66 @@ class MOEAD(EvolutionaryMethodBase):
         """Generate a random linear set of weigh vectors uniformly distributed between
         [0, 1).
 
+        Returns:
+            np.ndarray: A vector containing weight vectors distributed
+            uniformly.
+
         """
         return np.random.uniform(size=(self.n, self.problem.n_of_objectives))
 
     def _compute_neighborhoods(self) -> np.ndarray:
+        """Compute the neighborhoods for each weight vector. A neighborhood is
+        defined as a vector of unique indices, each index repsesenting a weight
+        vector in the neighborhood.
+
+        Returns:
+            np.ndarray: A vector of the neighborhoods
+
+        """
         b = np.zeros((self.n, self.t))
-        tmp = np.zeros(self.n)  # hold the distances
-        mask = np.full(self.n, True, dtype=bool)  # Mask out the current weight
         for (i, lam) in enumerate(self.lambdas):
-            mask[i] = False
-            tmp = np.linalg.norm(lam, self.lambdas[mask])
-            indices = np.argsort(tmp)[:self.t]
-            b[i] = tmp[indices]
-            mask[i] = True
+            indices = np.argsort(
+                np.linalg.norm(lam - self.lambdas, axis=1))[1: self.t+1]
+            b[i] = indices
 
         return b
+
+    def _generate_feasible_population(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Generates an initial feasible population of solution vectors.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: A tuple containing the solution
+            vectors and the corresponding objevtive vectors.
+
+        Note:
+            This function will try to retry the generation of each solution
+            until it finds a feasible one. This could results in
+            complication. Beware!
+
+        """
+        n_vars = self.problem.n_of_variables
+        pop = np.zeros((self.n, n_vars))
+        fs = np.zeros((self.n, self.problem.n_of_objectives))
+        lows = self.problem.get_variable_lower_bounds()
+        highs = self.problem.get_variable_upper_bounds()
+
+        for i in range(len(pop)):
+            while True:
+                x = np.random.uniform(lows, highs, (1, n_vars))
+                f, cons = self.problem.evaluate(x)
+                if cons is None or np.all(cons >= 0):
+                    pop[i] = x
+                    fs[i] = f
+                    break
+
+        return pop, fs
 
     def initialize(
         self,
         n_subproblems: int,
         neighborhood_size: int,
         weight_vectors: Optional[np.ndarray] = None,
+        initial_population: Optional[np.ndarray] = None
     ):
         """Give the input paramters, initialize variables and generate an
         initial population
@@ -214,6 +328,8 @@ class MOEAD(EvolutionaryMethodBase):
             weight_vectors (Optional[np.ndarray]): A vector of size
             n_subproblems containing a uniform spread of weight vectors. If
             None, compute a set of random linearly spread weight vectors.
+            initial_population (np.ndarray): A vector of initial solution
+            vectors for the problem.
 
         """
         self.n = n_subproblems
@@ -226,10 +342,14 @@ class MOEAD(EvolutionaryMethodBase):
 
         # Compute the distances between each weight vector and define the
         # neighborhoods
-        self.b = np.zeros((self.n, self.t))
+        self.b = self._compute_neighborhoods()
 
         # Generate the initial population
-        self.pop = np.zeros((self.n, self.problem.n_of_variables))
+        if initial_population is None:
+            self.pop, self.fs = self._generate_feasible_population()
+        else:
+            self.pop = initial_population
+            self.fs, _ = self.problem.evaluate(self.pop)
 
-        # Initialize the best objective vector to just be infinite
-        self.z = np.full(self.problem.n_of_objectives, np.inf)
+        # Initialize the best objective values
+        self.z = np.min(self.fs, axis=0)
