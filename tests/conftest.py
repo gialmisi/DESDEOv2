@@ -110,3 +110,69 @@ def CylinderProblem():
     problem = ScalarMOProblem(objectives, variables, constraints)
 
     return problem
+
+
+@pytest.fixture
+def DTLZ1_3D():
+    variables = []
+    variables.append(Variable("x1", 0.5, 0, 1))
+    variables.append(Variable("x2", 0.5, 0, 1))
+
+    def g(x):
+        return 100*(np.linalg.norm(x) +
+                    np.sum((x[0]-0.5)**2 - np.cos(20*np.pi*(x-0.5))))
+
+    objectives = []
+    objectives.append(
+        ScalarObjective("f1",
+                        lambda x: 0.5*x[0]*(1 + g(x)))
+    )
+    objectives.append(
+        ScalarObjective("f2",
+                        lambda x: 0.5*(1 - x[0])*(1 + g(x)))
+    )
+
+    constraints = []
+    constraints.append(
+        ScalarConstraint(
+            "",
+            len(variables),
+            len(objectives),
+            constraint_function_factory(
+                lambda x, f: x[0], 0.0, ">"
+            ),
+        )
+    )
+    constraints.append(
+        ScalarConstraint(
+            "",
+            len(variables),
+            len(objectives),
+            constraint_function_factory(
+                lambda x, f: x[0], 1.0, "<"
+            ),
+        )
+    )
+    constraints.append(
+        ScalarConstraint(
+            "",
+            len(variables),
+            len(objectives),
+            constraint_function_factory(
+                lambda x, f: x[1], 0.0, ">"
+            ),
+        )
+    )
+    constraints.append(
+        ScalarConstraint(
+            "",
+            len(variables),
+            len(objectives),
+            constraint_function_factory(
+                lambda x, f: x[1], 1.0, "<"
+            ),
+        )
+    )
+
+    problem = ScalarMOProblem(objectives, variables, constraints)
+    return problem

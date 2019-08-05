@@ -35,6 +35,7 @@ def frozen(logger: Logger) -> None:
             ...
 
     """
+
     def _frozen(cls: None) -> None:
         cls.__frozen = False
 
@@ -44,8 +45,9 @@ def frozen(logger: Logger) -> None:
 
             """
             if self.__frozen and not hasattr(self, key):
-                msg = ("Class {} is frozen. Cannot set {} = {}"
-                       .format(cls.__name__, key, value))
+                msg = "Class {} is frozen. Cannot set {} = {}".format(
+                    cls.__name__, key, value
+                )
                 logger.debug(msg)
             else:
                 object.__setattr__(self, key, value)

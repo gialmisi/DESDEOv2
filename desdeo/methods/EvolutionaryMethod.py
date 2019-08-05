@@ -71,6 +71,8 @@ class MOEAD(EvolutionaryMethodBase):
         self.__t: int = 0
         # Set of non dominated solutions
         self.__epop: List[np.ndarray] = []
+        # Corresponding colution vectors to epop
+        self.__epop_fs: List[np.ndarray] = []     
         # Poulation of the solutions of each subproblem
         self.__pop: np.ndarray = None
         # The objective vectors corresponsing to each subproblem
@@ -153,7 +155,7 @@ class MOEAD(EvolutionaryMethodBase):
             raise EvolutionaryError(msg)
 
         elif val < 0:
-            msg = ("The neighborhood size must be positive.")
+            msg = "The neighborhood size must be positive."
             logger.debug(msg)
             raise EvolutionaryError(msg)
 
@@ -166,6 +168,14 @@ class MOEAD(EvolutionaryMethodBase):
     @epop.setter
     def epop(self, val: List[np.ndarray]):
         self.__epop = val
+
+    @property
+    def epop_fs(self) -> List[np.ndarray]:
+        return self.__epop_fs
+
+    @epop_fs.setter
+    def epop_fs(self, val: List[np.ndarray]):
+        self.__epop_fs = val
 
     @property
     def pop(self) -> np.ndarray:
@@ -212,7 +222,8 @@ class MOEAD(EvolutionaryMethodBase):
             msg = (
                 "The shape of the vector containing the objective "
                 "vectors must (number of subproblems, "
-                "number of objectives). Given shape '{}'").format(val.shape)
+                "number of objectives). Given shape '{}'"
+            ).format(val.shape)
             logger.debug(msg)
             raise EvolutionaryError(msg)
         self.__fs = val
@@ -272,10 +283,11 @@ class MOEAD(EvolutionaryMethodBase):
             np.ndarray: A vector of the neighborhoods
 
         """
-        b = np.zeros((self.n, self.t))
+        b = np.zeros((self.n, self.t), dtype=int)
         for (i, lam) in enumerate(self.lambdas):
-            indices = np.argsort(
-                np.linalg.norm(lam - self.lambdas, axis=1))[1: self.t+1]
+            indices = np.argsort(np.linalg.norm(lam - self.lambdas, axis=1))[
+                1 : self.t + 1
+            ]
             b[i] = indices
 
         return b
@@ -315,9 +327,9 @@ class MOEAD(EvolutionaryMethodBase):
         n_subproblems: int,
         neighborhood_size: int,
         weight_vectors: Optional[np.ndarray] = None,
-        initial_population: Optional[np.ndarray] = None
+        initial_population: Optional[np.ndarray] = None,
     ):
-        """Give the input paramters, initialize variables and generate an
+        """Give the input parameters, initialize variables and generate an
         initial population
 
         Arguments:
@@ -353,3 +365,55 @@ class MOEAD(EvolutionaryMethodBase):
 
         # Initialize the best objective values
         self.z = np.min(self.fs, axis=0)
+
+    def run(self):
+        for i in range(self.n):
+            k, j = np.random.choice(self.b[i], size=2)
+
+            while True:
+                # make a random amalgamation of the two solutions until a
+                # feasible one is born
+                w_k = np.random.uniform(0.0, 1.0, size=self.pop[k].shape)
+                w_j = np.random.uniform(0.0, 1.0, size=self.pop[j].shape)
+                y = (w_k * self.pop[k] + w_j * self.pop[j])
+
+                y_objectives, y_consts = self.problem.evaluate(y)
+                if y_consts is None:
+                    break
+                elif np.all(y_consts >= 0):
+                    # solution is feasible, continue
+                    break
+
+            # update best objective values found so far
+            for m, elem in enumerate(self.z):
+                if y_objectives[0][m] < elem:
+                    self.z[m] = y_objectives[0][m]
+
+            # update neighboring solutions
+            for h in self.b[i]:
+                y_te = np.max(self.lambdas[h] * np.abs(y_objectives[0] - self.z))
+                x_te = np.max(self.lambdas[h] * np.abs(self.fs[h] - self.z))
+
+                if y_te <= x_te:
+                    self.pop[h] = y
+                    self.fs[h] = y_objectives[0]
+
+            # update the external population
+            dominated = False
+            for ind, sol in enumerate(self.epop):
+                # if y dominates any member in EP, remove the member
+                if np.all(y_objectives[0] <= sol) and np.any(y_objectives[0] < sol):
+                    print(y_objectives[0], "dominates", sol)
+                    self.epop.pop(ind)
+                    self.epop_fs.pop(ind)
+                    continue
+                # check if any member in the population dominates y
+                elif np.all(sol <= y_objectives[0]) and np.any(
+                    sol < y_objectives[0]
+                ):
+                    dominated = True
+
+            # if y is not dominated, add it to the EP
+            if not dominated:
+                self.epop.append(y_objectives[0])
+                self.epop_fs.append(y)

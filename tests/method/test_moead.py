@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import matplotlib.pyplot as plt
 
 from desdeo.methods.EvolutionaryMethod import MOEAD, EvolutionaryError
 
@@ -34,8 +35,6 @@ def test_initialize(CylinderProblem):
     assert method.fs.shape == (method.n, method.problem.n_of_objectives)
 
     assert method.z.shape == (method.problem.n_of_objectives,)
-
-    # for column in 
 
 
 def test_generate_uniform_weights(RiverPollutionProblem):
@@ -76,7 +75,6 @@ def test_compute_neighborhoods():
     assert np.all(np.isclose(np.mean(b_rand, axis=1), 0.5*n, atol=0.025*n))
 
 
-@pytest.mark.snipe
 def test_generate_feasible_population(CylinderProblem, RiverPollutionProblem):
     # problem with constraints
     method = MOEAD(CylinderProblem)
@@ -100,3 +98,16 @@ def test_generate_feasible_population(CylinderProblem, RiverPollutionProblem):
     assert np.all(np.equal(cons, None))
     assert fs.shape == (method.n, method.problem.n_of_objectives)
     assert np.all(np.isclose(fs, feval))
+
+
+@pytest.mark.snipe
+def test_run(DTLZ1_3D):
+    method = MOEAD(DTLZ1_3D)
+    method.initialize(100, 20)
+    for i in range(10):
+        method.run()
+
+    ep = np.array(method.epop_fs)
+    print(ep)
+    plt.scatter(ep[:, 0], ep[:, 1])
+    plt.show()
