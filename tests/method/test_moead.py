@@ -1,5 +1,7 @@
 import numpy as np
 import pytest
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
+
 import matplotlib.pyplot as plt
 
 from desdeo.methods.EvolutionaryMethod import MOEAD, EvolutionaryError
@@ -103,11 +105,20 @@ def test_generate_feasible_population(CylinderProblem, RiverPollutionProblem):
 @pytest.mark.snipe
 def test_run(DTLZ1_3D):
     method = MOEAD(DTLZ1_3D)
-    method.initialize(100, 20)
-    for i in range(10):
+    method.initialize(50, 5)
+    for i in range(100):
+        print(i)
         method.run()
 
+    ep_x = np.array(method.epop)
     ep = np.array(method.epop_fs)
-    print(ep)
-    plt.scatter(ep[:, 0], ep[:, 1])
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.scatter(ep[:, 0], ep[:, 1], ep[:, 2])
+    # ax.set_xlim3d(0, 1)
+    # ax.set_ylim3d(0, 1)
+    # ax.set_zlim3d(0, 1)
+
     plt.show()

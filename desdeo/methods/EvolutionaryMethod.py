@@ -71,8 +71,8 @@ class MOEAD(EvolutionaryMethodBase):
         self.__t: int = 0
         # Set of non dominated solutions
         self.__epop: List[np.ndarray] = []
-        # Corresponding colution vectors to epop
-        self.__epop_fs: List[np.ndarray] = []     
+        # Corresponding solution vectors to epop
+        self.__epop_fs: List[np.ndarray] = []
         # Poulation of the solutions of each subproblem
         self.__pop: np.ndarray = None
         # The objective vectors corresponsing to each subproblem
@@ -371,11 +371,13 @@ class MOEAD(EvolutionaryMethodBase):
             k, j = np.random.choice(self.b[i], size=2)
 
             while True:
-                # make a random amalgamation of the two solutions until a
-                # feasible one is born
-                w_k = np.random.uniform(0.0, 1.0, size=self.pop[k].shape)
-                w_j = np.random.uniform(0.0, 1.0, size=self.pop[j].shape)
-                y = (w_k * self.pop[k] + w_j * self.pop[j])
+                # Use a single point crossover
+                cs_point = np.random.randint(0, len(self.pop[k]) + 1)
+                y = np.concatenate(
+                    (self.pop[k][:cs_point], self.pop[j][cs_point:]), axis=None
+                )
+                if np.random.uniform() > 0.5:
+                    y *= np.random.uniform()
 
                 y_objectives, y_consts = self.problem.evaluate(y)
                 if y_consts is None:
@@ -391,29 +393,42 @@ class MOEAD(EvolutionaryMethodBase):
 
             # update neighboring solutions
             for h in self.b[i]:
-                y_te = np.max(self.lambdas[h] * np.abs(y_objectives[0] - self.z))
+                y_te = np.max(
+                    self.lambdas[h] * np.abs(y_objectives[0] - self.z)
+                )
                 x_te = np.max(self.lambdas[h] * np.abs(self.fs[h] - self.z))
 
                 if y_te <= x_te:
                     self.pop[h] = y
                     self.fs[h] = y_objectives[0]
 
-            # update the external population
             dominated = False
-            for ind, sol in enumerate(self.epop):
+            to_pop = []
+            for ind, sol in enumerate(self.epop_fs):
                 # if y dominates any member in EP, remove the member
-                if np.all(y_objectives[0] <= sol) and np.any(y_objectives[0] < sol):
-                    print(y_objectives[0], "dominates", sol)
-                    self.epop.pop(ind)
-                    self.epop_fs.pop(ind)
-                    continue
+                if np.all(y_objectives[0] <= sol) and np.any(
+                    y_objectives[0] < sol
+                ):
+                    to_pop.append(ind)
+
                 # check if any member in the population dominates y
                 elif np.all(sol <= y_objectives[0]) and np.any(
                     sol < y_objectives[0]
                 ):
                     dominated = True
 
+            # update the external population
+            self.epop = [
+                elem for ind, elem in enumerate(self.epop) if ind not in to_pop
+            ]
+            self.epop_fs = [
+                elem
+                for ind, elem in enumerate(self.epop_fs)
+                if ind not in to_pop
+            ]
+
             # if y is not dominated, add it to the EP
             if not dominated:
-                self.epop.append(y_objectives[0])
-                self.epop_fs.append(y)
+                self.epop.append(y)
+                self.epop_fs.append(y_objectives[0])
+            print(".")

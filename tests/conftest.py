@@ -114,65 +114,51 @@ def CylinderProblem():
 
 @pytest.fixture
 def DTLZ1_3D():
+    n = 3
     variables = []
-    variables.append(Variable("x1", 0.5, 0, 1))
-    variables.append(Variable("x2", 0.5, 0, 1))
+    for i in range(n):
+        variables.append(Variable("x{}".format(i), 0.5, 0, 1))
 
     def g(x):
-        return 100*(np.linalg.norm(x) +
-                    np.sum((x[0]-0.5)**2 - np.cos(20*np.pi*(x-0.5))))
+        return 100*(n-2) + 100*(
+            np.sum((x[2:]-0.5)**2 - np.cos(20*np.pi*(x[2:]-0.5))))
 
     objectives = []
     objectives.append(
         ScalarObjective("f1",
-                        lambda x: 0.5*x[0]*(1 + g(x)))
+                        lambda x: (1 + g(x))*x[0]*x[1])
     )
     objectives.append(
         ScalarObjective("f2",
-                        lambda x: 0.5*(1 - x[0])*(1 + g(x)))
+                        lambda x: (1 + g(x))*x[0]*(1-x[1]))
+    )
+    objectives.append(
+        ScalarObjective("f3",
+                        lambda x: (1 + g(x))*(1 - x[0]))
     )
 
     constraints = []
-    constraints.append(
-        ScalarConstraint(
-            "",
-            len(variables),
-            len(objectives),
-            constraint_function_factory(
-                lambda x, f: x[0], 0.0, ">"
-            ),
+    for i in range(n):
+        constraints.append(
+            ScalarConstraint(
+                "",
+                len(variables),
+                len(objectives),
+                constraint_function_factory(
+                    lambda x, f: x[i], 0.0, ">"
+                ),
+            )
         )
-    )
-    constraints.append(
-        ScalarConstraint(
-            "",
-            len(variables),
-            len(objectives),
-            constraint_function_factory(
-                lambda x, f: x[0], 1.0, "<"
-            ),
+        constraints.append(
+            ScalarConstraint(
+                "",
+                len(variables),
+                len(objectives),
+                constraint_function_factory(
+                    lambda x, f: x[i], 1.0, "<"
+                ),
+            )
         )
-    )
-    constraints.append(
-        ScalarConstraint(
-            "",
-            len(variables),
-            len(objectives),
-            constraint_function_factory(
-                lambda x, f: x[1], 0.0, ">"
-            ),
-        )
-    )
-    constraints.append(
-        ScalarConstraint(
-            "",
-            len(variables),
-            len(objectives),
-            constraint_function_factory(
-                lambda x, f: x[1], 1.0, "<"
-            ),
-        )
-    )
 
     problem = ScalarMOProblem(objectives, variables, constraints)
     return problem

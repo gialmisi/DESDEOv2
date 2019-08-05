@@ -172,7 +172,7 @@ def constraint_function_factory(
        hand side of the constraint.
        operator (str): The kind of constraint. Can be '==', '<', '>'.
 
-    Returns
+    Returns:
        Callable: A function that can be called to evaluate the rhs and
        which returns representing how the constraint is obeyed. A negative
        value represent a violation of the constraint and a positive value an
