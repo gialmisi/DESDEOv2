@@ -3,8 +3,15 @@ import pytest
 from pytest import approx
 import os
 
+
+from mpl_toolkits.mplot3d import Axes3D  # noqa
+import matplotlib.pyplot as plt
+import logging
+
 from desdeo.methods.InteractiveMethod import InteractiveMethodError
 from desdeo.methods.Nautilus import ENautilus
+
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
 @pytest.fixture
@@ -37,8 +44,10 @@ def test_initialization(sphere_pareto):
     assert method.n_iters == 10
     assert method.n_points == 5
 
-    assert np.all(np.isclose(method.zshi[0], method.nadir))
+    assert np.all(np.isclose(method.z[0], method.nadir))
+
     assert method.zshi.shape == (10, 5, 3)
+    assert method.fhilo.shape == (10, 5, 3)
 
     assert method.h == 1
     assert method.ith == 10
@@ -64,3 +73,23 @@ def test_initialization(sphere_pareto):
     # bad n points
     with pytest.raises(InteractiveMethodError):
         method.n_points = -1
+
+
+@pytest.mark.snipe
+def test_iterate(sphere_pareto):
+    method = ENautilus()
+    xs, fs = sphere_pareto
+    nadit, ideal = method.initialize(xs, fs, 10, 4)
+    method.iterate()
+    print(method.zshi[1])
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(method.objective_vectors[:, 0],
+               method.objective_vectors[:, 1],
+               method.objective_vectors[:, 2], s=0.1)
+    ax.scatter(method.zshi[1, :, 0],
+               method.zshi[1, :, 1],
+               method.zshi[1, :, 2])
+    ax.scatter(method.nadir[0], method.nadir[1], method.nadir[2], c='r')
+    plt.show()

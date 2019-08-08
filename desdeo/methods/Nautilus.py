@@ -9,6 +9,8 @@ from os import path
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+from sklearn.cluster import KMeans
+
 
 from desdeo.methods.InteractiveMethod import (
     InteractiveMethodBase,
@@ -661,6 +663,10 @@ class ENautilus(InteractiveMethodBase):
         # the subset of the reachable pareto optimal solutions
         # during each iteration
         self.__psub: List[np.ndarray] = []
+        # reference point in current iteration
+        self.__z: np.ndarray = None
+        # lower bounds of the reachable set from each intermediate point
+        self.__fhilo: np.ndarray = None
 
     @property
     def pareto_front(self) -> np.ndarray:
@@ -770,6 +776,22 @@ class ENautilus(InteractiveMethodBase):
     def psub(self, val: [np.ndarray]):
         self.__psub = val
 
+    @property
+    def z(self) -> np.ndarray:
+        return self.__z
+
+    @z.setter
+    def z(self, val: np.ndarray):
+        self.__z = val
+
+    @property
+    def fhilo(self) -> np.ndarray:
+        return self.__fhilo
+
+    @fhilo.setter
+    def fhilo(self, val: np.ndarray):
+        self.__fhilo = val
+
     def initialize(
         self,
         pareto_front: np.ndarray,
@@ -790,23 +812,55 @@ class ENautilus(InteractiveMethodBase):
         self.nadir = np.max(self.objective_vectors, axis=0)
         self.ideal = np.min(self.objective_vectors, axis=0)
 
-        # initialize the intermediate points
-        self.zshi = np.full((self.n_iters,
-                             self.n_points,
-                             self.objective_vectors.shape[1]),
-                            np.nan,
-                            dtype=np.float)
-        self.zshi[0, :] = self.nadir
+        # initialize the intermediate points and bounds
+        self.zshi = np.full(
+            (self.n_iters, self.n_points, self.objective_vectors.shape[1]),
+            np.nan,
+            dtype=np.float,
+        )
+        self.fhilo = np.full(
+            (self.n_iters, self.n_points, self.objective_vectors.shape[1]),
+            np.nan,
+            dtype=np.float,
+        )
 
         self.h = 1
         self.ith = self.n_iters
 
         self.psub.append(self.pareto_front)
 
+        self.z = np.full(
+            (self.n_iters, self.objective_vectors.shape[1]), np.nan
+        )
+        self.z[0] = self.nadir
+
         return self.nadir, self.ideal
 
-    def iterate():
-        pass
+    def iterate(self):
+        """Calculate the most representative points in each iteration,
+        according to a preference point, and return them.
+
+        """
+        # Use clustering to find the centers of n_points clusters
+        kmeans = KMeans(n_clusters=self.n_points)
+        kmeans.fit(self.objective_vectors)
+        zbars = kmeans.cluster_centers_
+
+        self.zshi[self.h] = ((self.ith - 1) / self.ith) * self.z[
+            self.h - 1
+        ] + (1 / self.ith) * zbars
+
+        # calculate the lower bounds
+        for r in range(self.objective_vectors.shape[1]):
+            col_mask = np.full(self.objective_vectors.shape[1], True)
+            col_mask[r] = False
+            for i in range(self.n_points):
+                mask = np.all(
+                    self.zshi[self.h, i, col_mask] >=
+                    self.objective_vectors[:, col_mask], axis=1)
+
+                self.fhilo[self.h, i, r] = \
+                    np.min(self.objective_vectors[mask, r])
 
     def interact():
         pass
