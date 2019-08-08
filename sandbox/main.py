@@ -3,17 +3,19 @@
 """
 
 
-class Foo(object):
-    """Documentation for Test
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
 
-    """
-    def __init__(self):
-        self.__prop: int = None
+a = np.array([[np.cos(th), np.sin(th)] for th in np.linspace(0, np.pi/2, 100)])
 
-    @property
-    def prop(self):
-        return self.__prop
+kmeans = KMeans(n_clusters=8)
+kmeans.fit(a)
 
-    @prop.setter
-    def prop(self, val):
-        self.__prop = val
+c = kmeans.cluster_centers_
+
+plt.scatter(a[:, 0], a[:, 1], c='b', alpha=0.1)
+plt.scatter(c[:, 0], c[:, 1], c='r')
+
+plt.show()

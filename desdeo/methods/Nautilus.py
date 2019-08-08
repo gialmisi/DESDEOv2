@@ -21,6 +21,7 @@ from desdeo.solver.ScalarSolver import (
     ASFScalarSolver,
     EpsilonConstraintScalarSolver,
 )
+from desdeo.utils.frozen import frozen
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"
@@ -29,6 +30,7 @@ logging.config.fileConfig(fname=log_conf_path, disable_existing_loggers=False)
 logger = logging.getLogger(__file__)
 
 
+@frozen(logger)
 class Nautilus(InteractiveMethodBase):
     """Implements the basic NAUTILUS methods as presented in `Miettinen 2010`_
 
@@ -217,7 +219,7 @@ class Nautilus(InteractiveMethodBase):
 
     @property
     def preference_index_set(self) -> np.ndarray:
-        return self.__index_set
+        return self.__preference_index_set
 
     @preference_index_set.setter
     def preference_index_set(self, val: np.ndarray):
@@ -249,7 +251,7 @@ class Nautilus(InteractiveMethodBase):
             ).format(self.problem.n_of_objectives, val)
             logger.debug(msg)
             raise InteractiveMethodError(msg)
-        self.__index_set = val
+        self.__preference_index_set = val
 
     @property
     def preference_percentages(self) -> np.ndarray:
@@ -623,3 +625,74 @@ class Nautilus(InteractiveMethodBase):
         self.__short_step = short_step
 
         return self.ith
+
+
+@frozen(logger)
+class ENautilus(InteractiveMethodBase):
+    """Implements the enhanced Nautilus variant, E-Nautilus originally
+    presented in `Ruiz 2015`_
+
+    .. _Ruiz 2015:
+        Ruiz A. B.; Sindhya K.; Miettinen K.; Ruiz F. & Luque M.
+        E-NAUTILUS: A decision support system for complex multiobjective
+        optimization problems based on the NAUTILUS method
+        Europen Joural of Operational Research, 2015, 246, 218-231
+    """
+
+    def __init__(self, problem: Optional[ProblemBase] = None):
+        super().__init__(problem)
+
+        # The full pareto front
+        self.__pareto_front = None
+        # Corresponding pareto optimal objective vectors for the full front
+        self.__objective_vecs = None
+        self.__nadir = None
+        self.__ideal = None
+
+    @property
+    def pareto_front(self) -> np.ndarray:
+        return self.__pareto_front
+
+    @pareto_front.setter
+    def pareto_front(self, val: np.ndarray):
+        self.__pareto_front = val
+
+    @property
+    def objective_vectors(self) -> np.ndarray:
+        return self.__objective_vectors
+
+    @objective_vectors.setter
+    def objective_vectors(self, val: np.ndarray):
+        self.__objective_vectors = val
+
+    @property
+    def nadir(self) -> np.ndarray:
+        return self.__nadir
+
+    @nadir.setter
+    def nadir(self, val: np.ndarray):
+        if len(val) != self.pareto_front.shape[1]:
+            msg = ("The nadir point's length '{}' must match the number of "
+                   "objectives '{}' (columns) specified in the given "
+                   "pareto front.").format(
+                       len(val), self.pareto_front.shape[1])
+            logger.debug(msg)
+            raise InteractiveMethodError(msg)
+
+        self.__nadir = val
+
+    def initialize(self,
+                   pareto_front: np.ndarray,
+                   objective_vectors: np.ndarray):
+        """Initialize the method with the input data required by E-NAUTILUS.
+
+        """
+
+        self.pareto_front = pareto_front
+        self.objective_vec = objective_vectors
+
+    def iterate():
+        pass
+
+    def interact():
+        pass

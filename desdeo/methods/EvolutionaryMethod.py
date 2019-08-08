@@ -1,5 +1,8 @@
 """Define a family of classes that use evolutionary algorithms to solve MOO
-problems for pareto optimal sets"""
+problems for pareto optimal sets
+
+NOTE: UNTESTED!!!!
+"""
 
 import logging
 import logging.config
