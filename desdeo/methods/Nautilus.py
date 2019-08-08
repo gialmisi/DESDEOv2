@@ -643,11 +643,24 @@ class ENautilus(InteractiveMethodBase):
         super().__init__(problem)
 
         # The full pareto front
-        self.__pareto_front = None
+        self.__pareto_front: np.ndarray = None
         # Corresponding pareto optimal objective vectors for the full front
-        self.__objective_vecs = None
-        self.__nadir = None
-        self.__ideal = None
+        self.__objective_vectors: np.ndarray = None
+        self.__nadir: np.ndarray = None
+        self.__ideal: np.ndarray = None
+        # number of total iterations
+        self.__n_iters: int = 0
+        # number of points to be shown to the DM after each iteration
+        self.__n_points: int = 0
+        # the i (n_points) intermediate points at step h
+        self.__zshi: np.ndarray = None
+        # current iteration
+        self.__h: int = 0
+        # iterations left
+        self.__ith: int = 0
+        # the subset of the reachable pareto optimal solutions
+        # during each iteration
+        self.__psub: List[np.ndarray] = []
 
     @property
     def pareto_front(self) -> np.ndarray:
@@ -671,25 +684,126 @@ class ENautilus(InteractiveMethodBase):
 
     @nadir.setter
     def nadir(self, val: np.ndarray):
-        if len(val) != self.pareto_front.shape[1]:
-            msg = ("The nadir point's length '{}' must match the number of "
-                   "objectives '{}' (columns) specified in the given "
-                   "pareto front.").format(
-                       len(val), self.pareto_front.shape[1])
+        if len(val) != self.objective_vectors.shape[1]:
+            msg = (
+                "The nadir point's length '{}' must match the number of "
+                "objectives '{}' (columns) specified in the given "
+                "pareto front."
+            ).format(len(val), self.objective_vectors.shape[1])
             logger.debug(msg)
             raise InteractiveMethodError(msg)
 
         self.__nadir = val
 
-    def initialize(self,
-                   pareto_front: np.ndarray,
-                   objective_vectors: np.ndarray):
+    @property
+    def ideal(self) -> np.ndarray:
+        return self.__ideal
+
+    @ideal.setter
+    def ideal(self, val: np.ndarray):
+        if len(val) != self.objective_vectors.shape[1]:
+            msg = (
+                "The ideal point's length '{}' must match the number of "
+                "objectives '{}' (columns) specified in the given "
+                "pareto front."
+            ).format(len(val), self.objective_vectors.shape[1])
+            logger.debug(msg)
+            raise InteractiveMethodError(msg)
+
+        self.__ideal = val
+
+    @property
+    def n_iters(self) -> int:
+        return self.__n_iters
+
+    @n_iters.setter
+    def n_iters(self, val: int):
+        if val < 1:
+            msg = "Number of itearions must be greater than zero."
+            logger.debug(msg)
+            raise InteractiveMethodError(msg)
+
+        self.__n_iters = val
+
+    @property
+    def n_points(self) -> int:
+        return self.__n_points
+
+    @n_points.setter
+    def n_points(self, val: int):
+        if val < 1:
+            msg = "The number of points shown must be greater than zero."
+            logger.debug(msg)
+            raise InteractiveMethodError(msg)
+
+        self.__n_points = val
+
+    @property
+    def zshi(self) -> List[List[np.ndarray]]:
+        return self.__zshi
+
+    @zshi.setter
+    def zshi(self, val: List[List[np.ndarray]]):
+        self.__zshi = val
+
+    @property
+    def h(self) -> int:
+        return self.__h
+
+    @h.setter
+    def h(self, val: int):
+        self.__h = val
+
+    @property
+    def ith(self) -> int:
+        return self.__ith
+
+    @ith.setter
+    def ith(self, val: int):
+        self.__ith = val
+
+    @property
+    def psub(self) -> [np.ndarray]:
+        return self.__psub
+
+    @psub.setter
+    def psub(self, val: [np.ndarray]):
+        self.__psub = val
+
+    def initialize(
+        self,
+        pareto_front: np.ndarray,
+        objective_vectors: np.ndarray,
+        n_iters: int,
+        n_points: int,
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Initialize the method with the input data required by E-NAUTILUS.
 
         """
-
         self.pareto_front = pareto_front
-        self.objective_vec = objective_vectors
+        self.objective_vectors = objective_vectors
+
+        self.n_iters = n_iters
+        self.n_points = n_points
+
+        # find the nadir and ideal points
+        self.nadir = np.max(self.objective_vectors, axis=0)
+        self.ideal = np.min(self.objective_vectors, axis=0)
+
+        # initialize the intermediate points
+        self.zshi = np.full((self.n_iters,
+                             self.n_points,
+                             self.objective_vectors.shape[1]),
+                            np.nan,
+                            dtype=np.float)
+        self.zshi[0, :] = self.nadir
+
+        self.h = 1
+        self.ith = self.n_iters
+
+        self.psub.append(self.pareto_front)
+
+        return self.nadir, self.ideal
 
     def iterate():
         pass
