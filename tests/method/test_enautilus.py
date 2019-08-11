@@ -83,26 +83,70 @@ def test_iterate(sphere_pareto):
     xs, fs = sphere_pareto
     nadir, ideal = method.initialize(xs, fs, 10, 8)
     zs, fs = method.iterate()
-    print(zs, fs)
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    plt.title("test_iterate in test_enautilus.py:\n "
+              "Green dots should be dominating the red dot.\n Green "
+              "dots should be spread evenly and lay between the pareto\n "
+              "front (blue dots) and the nadir (red dot).\n"
+              "Close this to continue.")
     ax.scatter(method.obj_sub[1][:, 0],
                method.obj_sub[1][:, 1],
-               method.obj_sub[1][:, 2], s=0.1)
+               method.obj_sub[1][:, 2], s=0.1, c='blue')
     ax.scatter(method.zshi[1, :, 0],
                method.zshi[1, :, 1],
-               method.zshi[1, :, 2])
-    ax.scatter(method.nadir[0], method.nadir[1], method.nadir[2], c='r')
+               method.zshi[1, :, 2], c='green')
+    ax.scatter(method.nadir[0], method.nadir[1], method.nadir[2], c='red')
     plt.show()
 
 
-@pytest.mark.snipe
-def test_interact(sphere_pareto):
+def test_interact_once(sphere_pareto):
     method = ENautilus()
     xs, fs = sphere_pareto
     nadir, ideal = method.initialize(xs, fs, 10, 5)
+    zs, fslow = method.iterate()
 
-    zs, flow = method.iterate()
+    method.interact(zs[0], fslow[0])
 
-    method.interact(fs[42])
+    assert method.h == 2
+    assert method.ith == 9
+
+    assert len(method.obj_sub[method.h]) <= len(method.obj_sub[method.h-1])
+    assert len(method.par_sub[method.h]) <= len(method.par_sub[method.h-1])
+
+    assert len(method.obj_sub[method.h]) == len(method.par_sub[method.h])
+
+    with pytest.raises(InteractiveMethodError):
+        # bad pref
+        method.interact(np.array([1, 1]), np.array([1, 1, 1]))
+
+    with pytest.raises(InteractiveMethodError):
+        # bad pref
+        method.interact(np.array([1, 1, 1, 1]), np.array([1, 1, 1]))
+
+    with pytest.raises(InteractiveMethodError):
+        # bad f_low
+        method.interact(np.array([1, 1, 1]), np.array([1, 1]))
+
+    with pytest.raises(InteractiveMethodError):
+        # bad f_low
+        method.interact(np.array([1, 1, 1]), np.array([1, 1, 1, 1]))
+
+
+def test_interact_end(sphere_pareto):
+    method = ENautilus()
+    xs, fs = sphere_pareto
+    total_iter = 10
+    nadir, ideal = method.initialize(xs, fs, total_iter, 5)
+
+    for i in range(total_iter-1):
+        # till the penultimate iteration
+        zs, f_lows = method.iterate()
+        r = np.random.randint(0, 5)
+        method.interact(zs[r], f_lows[r])
+
+    r = np.random.randint(0, 5)
+    _, res = method.interact(zs[r], f_lows[r])
+
+    assert np.any(np.all(np.isclose(res, fs), axis=1))

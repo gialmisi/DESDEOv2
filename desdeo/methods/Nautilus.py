@@ -694,6 +694,15 @@ class ENautilus(InteractiveMethodBase):
 
     @nadir.setter
     def nadir(self, val: np.ndarray):
+        """Set the nadir point.
+
+        Arguments:
+            val (np.ndarray): The nadir point.
+
+        Raises:
+            InteractiveMethodError: The nadir point is of the wrong dimensions.
+
+        """
         if len(val) != self.objective_vectors.shape[1]:
             msg = (
                 "The nadir point's length '{}' must match the number of "
@@ -711,6 +720,15 @@ class ENautilus(InteractiveMethodBase):
 
     @ideal.setter
     def ideal(self, val: np.ndarray):
+        """Set the ideal point.
+
+        Arguments:
+            val (np.ndarray): The ideal point.
+
+        Raises:
+            InteractiveMethodError: The ideal point is of the wrong dimensions.
+
+        """
         if len(val) != self.objective_vectors.shape[1]:
             msg = (
                 "The ideal point's length '{}' must match the number of "
@@ -728,6 +746,15 @@ class ENautilus(InteractiveMethodBase):
 
     @n_iters.setter
     def n_iters(self, val: int):
+        """Set the total number of iterations to be carried out.
+
+        Arguments:
+            val (int): The number of iterations.
+
+        Raises:
+            InteractiveMethodError: The number of iterations is non-positive.
+
+        """
         if val < 1:
             msg = "Number of itearions must be greater than zero."
             logger.debug(msg)
@@ -741,6 +768,15 @@ class ENautilus(InteractiveMethodBase):
 
     @n_points.setter
     def n_points(self, val: int):
+        """The number of points to be presented to the DM during each iteration.
+
+        Arguments:
+            val (int): Number of points to be shown.
+
+        Raises:
+            InteractiveMethodError: The number of points is non-positive.
+
+        """
         if val < 1:
             msg = "The number of points shown must be greater than zero."
             logger.debug(msg)
@@ -821,6 +857,20 @@ class ENautilus(InteractiveMethodBase):
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Initialize the method with the input data required by E-NAUTILUS.
 
+        Arguments:
+            pareto_front (np.ndarray): Vectors preresenting the pareto optimal
+            solutions of a MOO problem.
+            objective_vectors (np.ndarray): The objective vectors that
+            correspond to the pareto optimal solutions.
+            n_iters (int): The number of total iterations to be carried out.
+            n_points (int): The number of points to be shown to the DM each
+            iteration.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: A tuple containing:
+                np.ndarray: The nadir point of the problem.
+                np.ndarray: The ideal point of the problem.
+
         """
         self.pareto_front = pareto_front
         self.objective_vectors = objective_vectors
@@ -846,16 +896,12 @@ class ENautilus(InteractiveMethodBase):
             dtype=np.float,
         )
 
-        self.d = np.full(
-            (self.n_iters, self.n_points),
-            np.nan,
-            dtype=np.float,
-        )
+        self.d = np.full((self.n_iters, self.n_points), np.nan, dtype=np.float)
 
         # initialize the reachable subsets (None at the zeroth position,
         # because we want to use h to access them)
-        self.par_sub = [None]*self.n_iters
-        self.obj_sub = [None]*self.n_iters
+        self.par_sub = [None] * (self.n_iters + 1)
+        self.obj_sub = [None] * (self.n_iters + 1)
 
         self.h = 1
         self.ith = self.n_iters
@@ -866,8 +912,12 @@ class ENautilus(InteractiveMethodBase):
         return self.nadir, self.ideal
 
     def iterate(self):
-        """Calculate the most representative points in each iteration,
+        """Calculate the most representative points and the lower bounds of
+        the reachable solutions in each iteration,
         according to a preference point, and return them.
+        
+        Returns:
+            
 
         """
         # Use clustering to find the most representative points
@@ -886,26 +936,40 @@ class ENautilus(InteractiveMethodBase):
             col_mask[r] = False
             for i in range(self.n_points):
                 mask = np.all(
-                    self.zshi[self.h, i, col_mask] >=
-                    self.obj_sub[self.h][:, col_mask], axis=1)
+                    self.zshi[self.h, i, col_mask]
+                    >= self.obj_sub[self.h][:, col_mask],
+                    axis=1,
+                )
 
-                self.fhilo[self.h, i, r] = \
-                    np.min(self.obj_sub[self.h][mask, r])
+                self.fhilo[self.h, i, r] = np.min(
+                    self.obj_sub[self.h][mask, r]
+                )
 
         # calculate the distances to the pareto front for each representative
         # point
-        self.d[self.h] = (np.linalg.norm(self.zshi[self.h] - self.nadir, axis=1) /
-                          np.linalg.norm(zbars - self.nadir, axis=1)) * 100
+        self.d[self.h] = (
+            np.linalg.norm(self.zshi[self.h] - self.nadir, axis=1)
+            / np.linalg.norm(zbars - self.nadir, axis=1)
+        ) * 100
 
         return self.zshi[self.h], self.fhilo[self.h]
 
-    def interact(self, prefered_point: np.ndarray):
+    def interact(self, prefered_point: np.ndarray, lower_bounds: np.ndarray):
         if len(prefered_point) != self.objective_vectors.shape[1]:
             # check that the dimensions of the given points are correct
-            msg = ("The dimentions of the prefered point '{}' do not match "
-                   "the shape of the objective vectors '{}'.").format(
-                       len(prefered_point), self.objective_vectors.shape[1]
-                   )
+            msg = (
+                "The dimentions of the prefered point '{}' do not match "
+                "the shape of the objective vectors '{}'."
+            ).format(len(prefered_point), self.objective_vectors.shape[1])
+            logger.debug(msg)
+            raise InteractiveMethodError(msg)
+
+        if len(lower_bounds) != self.objective_vectors.shape[1]:
+            msg = (
+                "The dimentions of the lower bounds for the prefered "
+                "point '{}' do not match "
+                "the shape of the objective vectors '{}'."
+            ).format(len(lower_bounds), self.objective_vectors.shape[1])
             logger.debug(msg)
             raise InteractiveMethodError(msg)
 
@@ -915,11 +979,23 @@ class ENautilus(InteractiveMethodBase):
             # stop the algorithm and return the final solution and the
             # corresponding objective vector
             idx = np.linalg.norm(
-                self.obj_sub[self.h] - self.zpref, axis=1).argmin()
+                self.obj_sub[self.h] - self.zpref, axis=1
+            ).argmin()
             return self.par_sub[self.h][idx], self.obj_sub[self.h][idx]
 
         # Calculate the new reachable pareto solutions and objective vectors
         # from zpref
-        for j in range(self.n_points):
-            cond1 = np.all(np.less_equal(self.fhilo[self.h, j],
-                                         self.obj_sub[self.h]), axis=1)
+        cond1 = np.all(
+            np.less_equal(lower_bounds, self.obj_sub[self.h]), axis=1
+        )
+        cond2 = np.all(np.less_equal(self.obj_sub[self.h], self.zpref), axis=1)
+
+        indices = (cond1 & cond2).nonzero()
+
+        self.obj_sub[self.h+1] = self.obj_sub[self.h][indices]
+        self.par_sub[self.h+1] = self.par_sub[self.h][indices]
+
+        self.ith -= 1
+        self.h += 1
+
+        return None
