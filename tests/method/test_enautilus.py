@@ -29,7 +29,6 @@ def sphere_pareto():
     return (p[:, :2], p[:, 2:])
 
 
-@pytest.mark.snipe
 def test_initialization(sphere_pareto):
     method = ENautilus()
     xs, fs = sphere_pareto
@@ -44,15 +43,19 @@ def test_initialization(sphere_pareto):
     assert method.n_iters == 10
     assert method.n_points == 5
 
-    assert np.all(np.isclose(method.z[0], method.nadir))
+    assert np.all(np.isclose(method.zshi[0, :], method.nadir))
 
     assert method.zshi.shape == (10, 5, 3)
     assert method.fhilo.shape == (10, 5, 3)
+    assert method.d.shape == (10, 5)
 
     assert method.h == 1
     assert method.ith == 10
 
-    assert np.all(np.isclose(method.psub[0], method.pareto_front))
+    assert np.all(np.isclose(method.obj_sub[1], method.objective_vectors))
+    assert np.all(np.isclose(method.par_sub[1], method.pareto_front))
+
+    assert np.all(np.isclose(method.zpref, method.nadir))
 
     # bad nadir
     with pytest.raises(InteractiveMethodError):
@@ -75,21 +78,31 @@ def test_initialization(sphere_pareto):
         method.n_points = -1
 
 
-@pytest.mark.snipe
 def test_iterate(sphere_pareto):
     method = ENautilus()
     xs, fs = sphere_pareto
-    nadit, ideal = method.initialize(xs, fs, 10, 4)
-    method.iterate()
-    print(method.zshi[1])
+    nadir, ideal = method.initialize(xs, fs, 10, 8)
+    zs, fs = method.iterate()
+    print(zs, fs)
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(method.objective_vectors[:, 0],
-               method.objective_vectors[:, 1],
-               method.objective_vectors[:, 2], s=0.1)
+    ax.scatter(method.obj_sub[1][:, 0],
+               method.obj_sub[1][:, 1],
+               method.obj_sub[1][:, 2], s=0.1)
     ax.scatter(method.zshi[1, :, 0],
                method.zshi[1, :, 1],
                method.zshi[1, :, 2])
     ax.scatter(method.nadir[0], method.nadir[1], method.nadir[2], c='r')
     plt.show()
+
+
+@pytest.mark.snipe
+def test_interact(sphere_pareto):
+    method = ENautilus()
+    xs, fs = sphere_pareto
+    nadir, ideal = method.initialize(xs, fs, 10, 5)
+
+    zs, flow = method.iterate()
+
+    method.interact(fs[42])

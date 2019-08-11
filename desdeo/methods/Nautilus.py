@@ -11,7 +11,6 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 from sklearn.cluster import KMeans
 
-
 from desdeo.methods.InteractiveMethod import (
     InteractiveMethodBase,
     InteractiveMethodError,
@@ -662,11 +661,16 @@ class ENautilus(InteractiveMethodBase):
         self.__ith: int = 0
         # the subset of the reachable pareto optimal solutions
         # during each iteration
-        self.__psub: List[np.ndarray] = []
-        # reference point in current iteration
-        self.__z: np.ndarray = None
+        self.__par_sub: List[np.ndarray] = []
+        # the subset of the reachable pareto optimal objective vectors
+        # during each iteration
+        self.__obj_sub: List[np.ndarray] = []
         # lower bounds of the reachable set from each intermediate point
         self.__fhilo: np.ndarray = None
+        # closeness to the pareto front
+        self.__d: np.ndarray = None
+        # prefered point
+        self.__zpref: np.ndarray = None
 
     @property
     def pareto_front(self) -> np.ndarray:
@@ -769,20 +773,20 @@ class ENautilus(InteractiveMethodBase):
         self.__ith = val
 
     @property
-    def psub(self) -> [np.ndarray]:
-        return self.__psub
+    def par_sub(self) -> List[np.ndarray]:
+        return self.__par_sub
 
-    @psub.setter
-    def psub(self, val: [np.ndarray]):
-        self.__psub = val
+    @par_sub.setter
+    def par_sub(self, val: List[np.ndarray]):
+        self.__par_sub = val
 
     @property
-    def z(self) -> np.ndarray:
-        return self.__z
+    def obj_sub(self) -> List[np.ndarray]:
+        return self.__obj_sub
 
-    @z.setter
-    def z(self, val: np.ndarray):
-        self.__z = val
+    @obj_sub.setter
+    def obj_sub(self, val: List[np.ndarray]):
+        self.__obj_sub = val
 
     @property
     def fhilo(self) -> np.ndarray:
@@ -791,6 +795,22 @@ class ENautilus(InteractiveMethodBase):
     @fhilo.setter
     def fhilo(self, val: np.ndarray):
         self.__fhilo = val
+
+    @property
+    def d(self) -> np.ndarray:
+        return self.__d
+
+    @d.setter
+    def d(self, val: np.ndarray):
+        self.__d = val
+
+    @property
+    def zpref(self) -> np.ndarray:
+        return self.__zpref
+
+    @zpref.setter
+    def zpref(self, val: np.ndarray):
+        self.__zpref = val
 
     def initialize(
         self,
@@ -812,27 +832,36 @@ class ENautilus(InteractiveMethodBase):
         self.nadir = np.max(self.objective_vectors, axis=0)
         self.ideal = np.min(self.objective_vectors, axis=0)
 
-        # initialize the intermediate points and bounds
+        # initialize the intermediate points, bounds, and distances
         self.zshi = np.full(
             (self.n_iters, self.n_points, self.objective_vectors.shape[1]),
             np.nan,
             dtype=np.float,
         )
+        self.zshi[0, :] = self.nadir
+
         self.fhilo = np.full(
             (self.n_iters, self.n_points, self.objective_vectors.shape[1]),
             np.nan,
             dtype=np.float,
         )
 
+        self.d = np.full(
+            (self.n_iters, self.n_points),
+            np.nan,
+            dtype=np.float,
+        )
+
+        # initialize the reachable subsets (None at the zeroth position,
+        # because we want to use h to access them)
+        self.par_sub = [None]*self.n_iters
+        self.obj_sub = [None]*self.n_iters
+
         self.h = 1
         self.ith = self.n_iters
-
-        self.psub.append(self.pareto_front)
-
-        self.z = np.full(
-            (self.n_iters, self.objective_vectors.shape[1]), np.nan
-        )
-        self.z[0] = self.nadir
+        self.par_sub[self.h] = self.pareto_front
+        self.obj_sub[self.h] = self.objective_vectors
+        self.zpref = self.nadir
 
         return self.nadir, self.ideal
 
@@ -841,12 +870,13 @@ class ENautilus(InteractiveMethodBase):
         according to a preference point, and return them.
 
         """
-        # Use clustering to find the centers of n_points clusters
+        # Use clustering to find the most representative points
         kmeans = KMeans(n_clusters=self.n_points)
-        kmeans.fit(self.objective_vectors)
+        kmeans.fit(self.obj_sub[self.h])
         zbars = kmeans.cluster_centers_
 
-        self.zshi[self.h] = ((self.ith - 1) / self.ith) * self.z[
+        # calculate the intermediate points
+        self.zshi[self.h] = ((self.ith - 1) / self.ith) * self.zshi[
             self.h - 1
         ] + (1 / self.ith) * zbars
 
@@ -857,10 +887,39 @@ class ENautilus(InteractiveMethodBase):
             for i in range(self.n_points):
                 mask = np.all(
                     self.zshi[self.h, i, col_mask] >=
-                    self.objective_vectors[:, col_mask], axis=1)
+                    self.obj_sub[self.h][:, col_mask], axis=1)
 
                 self.fhilo[self.h, i, r] = \
-                    np.min(self.objective_vectors[mask, r])
+                    np.min(self.obj_sub[self.h][mask, r])
 
-    def interact():
-        pass
+        # calculate the distances to the pareto front for each representative
+        # point
+        self.d[self.h] = (np.linalg.norm(self.zshi[self.h] - self.nadir, axis=1) /
+                          np.linalg.norm(zbars - self.nadir, axis=1)) * 100
+
+        return self.zshi[self.h], self.fhilo[self.h]
+
+    def interact(self, prefered_point: np.ndarray):
+        if len(prefered_point) != self.objective_vectors.shape[1]:
+            # check that the dimensions of the given points are correct
+            msg = ("The dimentions of the prefered point '{}' do not match "
+                   "the shape of the objective vectors '{}'.").format(
+                       len(prefered_point), self.objective_vectors.shape[1]
+                   )
+            logger.debug(msg)
+            raise InteractiveMethodError(msg)
+
+        self.zpref = prefered_point
+
+        if self.ith == 1:
+            # stop the algorithm and return the final solution and the
+            # corresponding objective vector
+            idx = np.linalg.norm(
+                self.obj_sub[self.h] - self.zpref, axis=1).argmin()
+            return self.par_sub[self.h][idx], self.obj_sub[self.h][idx]
+
+        # Calculate the new reachable pareto solutions and objective vectors
+        # from zpref
+        for j in range(self.n_points):
+            cond1 = np.all(np.less_equal(self.fhilo[self.h, j],
+                                         self.obj_sub[self.h]), axis=1)
