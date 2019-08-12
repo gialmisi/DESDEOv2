@@ -7,7 +7,7 @@ import logging
 import logging.config
 from abc import ABC, abstractmethod
 from os import path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -56,7 +56,11 @@ class ProblemBase(ABC):
         pass
 
     @property
-    def n_of_objectives(self) -> int:
+    def n_of_objectives(self):
+        pass
+
+    @property
+    def n_of_variables(self):
         pass
 
     @property
@@ -76,16 +80,7 @@ class ProblemBase(ABC):
         pass
 
     @abstractmethod
-    def get_variable_bounds(self) -> Optional[np.ndarray]:
-        """Return the upper and lower bounds of defined in the problem as a 2D
-        numpy array. Each row represents a variable, the first column
-        represents the lower bounds and the second column the upper bounds.
-
-        Returns:
-            np.ndarray: The upper and lower bounds of the variables present in
-            problem. None, if no bounds can be specified.
-
-        """
+    def get_variable_bounds(self):
         pass
 
 
@@ -207,7 +202,7 @@ class ScalarMOProblem(ProblemBase):
     def constraint(self) -> List[ScalarConstraint]:
         return self.__constraints
 
-    def get_variable_bounds(self) -> Optional[np.ndarray]:
+    def get_variable_bounds(self) -> Union[np.ndarray, None]:
         """Return the upper and lower bounds of each decision variable present
         in the problem as a 2D numpy array. The first column corresponds to the
         lower bounds of each variable, and the second column to the upper

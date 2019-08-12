@@ -15,7 +15,6 @@ import numpy as np
 from desdeo.problem.Problem import ProblemBase
 from desdeo.utils.frozen import frozen
 
-
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"
 )
@@ -289,7 +288,7 @@ class MOEAD(EvolutionaryMethodBase):
         b = np.zeros((self.n, self.t), dtype=int)
         for (i, lam) in enumerate(self.lambdas):
             indices = np.argsort(np.linalg.norm(lam - self.lambdas, axis=1))[
-                1 : self.t + 1
+                1 : self.t + 1  # noqa
             ]
             b[i] = indices
 
@@ -311,8 +310,8 @@ class MOEAD(EvolutionaryMethodBase):
         n_vars = self.problem.n_of_variables
         pop = np.zeros((self.n, n_vars))
         fs = np.zeros((self.n, self.problem.n_of_objectives))
-        lows = self.problem.get_variable_lower_bounds()
-        highs = self.problem.get_variable_upper_bounds()
+        lows = self.problem.get_variable_bounds()[:, 0]
+        highs = self.problem.get_variable_bounds()[:, 1]
 
         for i in range(len(pop)):
             while True:

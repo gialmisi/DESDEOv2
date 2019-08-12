@@ -337,7 +337,7 @@ class Nautilus(InteractiveMethodBase):
         )
         return ds
 
-    def initialize(
+    def initialize(  # type: ignore
         self, itn: int = 5
     ) -> Tuple[np.ndarray, List[Tuple[float, float]], float]:
         """Initialize the method by setting the initialization parameters and
@@ -785,11 +785,11 @@ class ENautilus(InteractiveMethodBase):
         self.__n_points = val
 
     @property
-    def zshi(self) -> List[List[np.ndarray]]:
+    def zshi(self) -> np.ndarray:
         return self.__zshi
 
     @zshi.setter
-    def zshi(self, val: List[List[np.ndarray]]):
+    def zshi(self, val: np.ndarray):
         self.__zshi = val
 
     @property
@@ -848,7 +848,7 @@ class ENautilus(InteractiveMethodBase):
     def zpref(self, val: np.ndarray):
         self.__zpref = val
 
-    def initialize(
+    def initialize(  # type: ignore
         self,
         pareto_front: np.ndarray,
         objective_vectors: np.ndarray,
@@ -911,13 +911,18 @@ class ENautilus(InteractiveMethodBase):
 
         return self.nadir, self.ideal
 
-    def iterate(self):
-        """Calculate the most representative points and the lower bounds of
-        the reachable solutions in each iteration,
-        according to a preference point, and return them.
-        
+    def iterate(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Calculate the intermediate points and the lower bounds of
+        the reachable solutions from each point in the next iteration
+        according to a preference point specified by the decision maker during
+        the previous interaction. During the first iteration, the nadir point
+        is used instead.
+
         Returns:
-            
+            Tuple[np.ndarray, np.ndarray]: A tuple containing:
+                np.ndarray: The intermediate points.
+                np.ndarray: The lower bounds of the reachable values from each
+                intermediate point.
 
         """
         # Use clustering to find the most representative points
@@ -954,26 +959,51 @@ class ENautilus(InteractiveMethodBase):
 
         return self.zshi[self.h], self.fhilo[self.h]
 
-    def interact(self, prefered_point: np.ndarray, lower_bounds: np.ndarray):
-        if len(prefered_point) != self.objective_vectors.shape[1]:
+    def interact(  # type: ignore
+        self, preferred_point: np.ndarray, lower_bounds: np.ndarray
+    ) -> Union[None, Tuple[np.ndarray, np.ndarray]]:
+        """Specify the next preferred point from which to iterate in the next
+        iteration. The lower bounds of the reachable values from the preferred
+        point are also expected. This point does not necessarely need to be a
+        point returned by the iterate method in this class.
+
+        Arguments:
+            preferred_point (np.ndarray): An objective value vector
+            representing the preferred point.
+            lower_bounds (np.ndarray): The lower bounds of the reachable values
+            from the preferred point.
+
+        Returns:
+            Union[None, Tuple[np.ndarray, np.ndarray]]: None if invoked with
+            iterations still left. Otherwise a tuple containing:
+                np.ndarray: The final pareto optimal solution.
+                np.ndarray: The corresponding objevtive vector to the pareto
+                optimal solution.
+
+        Raises:
+            InteractiveMethodError: The dimensions of either the preferred
+            point or the lower bounds of the reachable values are incorrect.
+
+        """
+        if len(preferred_point) != self.objective_vectors.shape[1]:
             # check that the dimensions of the given points are correct
             msg = (
-                "The dimentions of the prefered point '{}' do not match "
+                "The dimensions of the prefered point '{}' do not match "
                 "the shape of the objective vectors '{}'."
-            ).format(len(prefered_point), self.objective_vectors.shape[1])
+            ).format(len(preferred_point), self.objective_vectors.shape[1])
             logger.debug(msg)
             raise InteractiveMethodError(msg)
 
         if len(lower_bounds) != self.objective_vectors.shape[1]:
             msg = (
-                "The dimentions of the lower bounds for the prefered "
+                "The dimensions of the lower bounds for the prefered "
                 "point '{}' do not match "
                 "the shape of the objective vectors '{}'."
             ).format(len(lower_bounds), self.objective_vectors.shape[1])
             logger.debug(msg)
             raise InteractiveMethodError(msg)
 
-        self.zpref = prefered_point
+        self.zpref = preferred_point
 
         if self.ith == 1:
             # stop the algorithm and return the final solution and the
@@ -992,8 +1022,8 @@ class ENautilus(InteractiveMethodBase):
 
         indices = (cond1 & cond2).nonzero()
 
-        self.obj_sub[self.h+1] = self.obj_sub[self.h][indices]
-        self.par_sub[self.h+1] = self.par_sub[self.h][indices]
+        self.obj_sub[self.h + 1] = self.obj_sub[self.h][indices]
+        self.par_sub[self.h + 1] = self.par_sub[self.h][indices]
 
         self.ith -= 1
         self.h += 1

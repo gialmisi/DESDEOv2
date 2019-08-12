@@ -4,6 +4,7 @@
 
 import abc
 from abc import abstractmethod
+from typing import Any, Optional
 
 from desdeo.problem.Problem import ProblemBase
 
@@ -30,8 +31,9 @@ class InteractiveMethodBase(abc.ABC):
 
     """
 
-    def __init__(self, problem: ProblemBase):
-        self.__problem = problem
+    def __init__(self, problem: Optional[ProblemBase] = None):
+        if problem is not None:
+            self.__problem: ProblemBase = problem
 
     @property
     def problem(self) -> ProblemBase:
@@ -42,18 +44,15 @@ class InteractiveMethodBase(abc.ABC):
         self.__problem = val
 
     @abstractmethod
-    def initialize(self):
+    def initialize(self, *args: Any, **kwargs: Any) -> Any:
         """Initializes the method.
 
-        Arguments:
-            initialization_parameters (Dict[str, Any]): A dict with str keys
-            with all the required paramters for initializing a method.
         """
         pass
 
     @abstractmethod
     def iterate(self):
-        """Steps one iteration in some direction once.
+        """Iterate the method once.
 
         """
         pass

@@ -120,22 +120,18 @@ def DTLZ1_3D():
         variables.append(Variable("x{}".format(i), 0.5, 0, 1))
 
     def g(x):
-        return 100*(n-2) + 100*(
-            np.sum((x[2:]-0.5)**2 - np.cos(20*np.pi*(x[2:]-0.5))))
+        return 100 * (n - 2) + 100 * (
+            np.sum((x[2:] - 0.5) ** 2 - np.cos(20 * np.pi * (x[2:] - 0.5)))
+        )
 
     objectives = []
     objectives.append(
-        ScalarObjective("f1",
-                        lambda x: (1 + g(x))*x[0]*x[1])
+        ScalarObjective("f1", lambda x: (1 + g(x)) * x[0] * x[1])
     )
     objectives.append(
-        ScalarObjective("f2",
-                        lambda x: (1 + g(x))*x[0]*(1-x[1]))
+        ScalarObjective("f2", lambda x: (1 + g(x)) * x[0] * (1 - x[1]))
     )
-    objectives.append(
-        ScalarObjective("f3",
-                        lambda x: (1 + g(x))*(1 - x[0]))
-    )
+    objectives.append(ScalarObjective("f3", lambda x: (1 + g(x)) * (1 - x[0])))
 
     constraints = []
     for i in range(n):
@@ -144,9 +140,7 @@ def DTLZ1_3D():
                 "",
                 len(variables),
                 len(objectives),
-                constraint_function_factory(
-                    lambda x, f: x[i], 0.0, ">"
-                ),
+                constraint_function_factory(lambda x, f: x[i], 0.0, ">"),
             )
         )
         constraints.append(
@@ -154,9 +148,7 @@ def DTLZ1_3D():
                 "",
                 len(variables),
                 len(objectives),
-                constraint_function_factory(
-                    lambda x, f: x[i], 1.0, "<"
-                ),
+                constraint_function_factory(lambda x, f: x[i], 1.0, "<"),
             )
         )
 

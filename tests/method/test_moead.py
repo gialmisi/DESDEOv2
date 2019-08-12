@@ -64,14 +64,14 @@ def test_compute_neighborhoods():
 
     # The neighborhood of each weight should not contain the weight itself the
     # neighborhood in calculated on
-    assert all((
-        [i not in neighborhood for (i, neighborhood) in enumerate(b_rand)]
-    ))
+    assert all(
+        ([i not in neighborhood for (i, neighborhood) in enumerate(b_rand)])
+    )
 
     # With random weights, we should expect the mean of each neighborhood to be
     # close to n/2 (since we have t random indices in each neighborhood ranging
     # between 0 and n-1). Allow for a 2.5% error relative to n.
-    assert np.all(np.isclose(np.mean(b_rand, axis=1), 0.5*n, atol=0.025*n))
+    assert np.all(np.isclose(np.mean(b_rand, axis=1), 0.5 * n, atol=0.025 * n))
 
 
 def test_generate_feasible_population(CylinderProblem, RiverPollutionProblem):

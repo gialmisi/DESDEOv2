@@ -14,11 +14,11 @@ Source: /questions/3603502/prevent-creating-new-attributes-outside-init
 """
 
 from functools import wraps
-
 from logging import Logger
+from typing import Any
 
 
-def frozen(logger: Logger) -> None:
+def frozen(logger: Logger) -> Any:
     """A decorator to prevent the definition of new attributes outside of that
     object's __init__ function.
 
@@ -34,9 +34,11 @@ def frozen(logger: Logger) -> None:
         class foo(parent):
             ...
 
+    Note: Typehinting this thing seems to be a nightmare.
+
     """
 
-    def _frozen(cls: None) -> None:
+    def _frozen(cls: Any) -> Any:
         cls.__frozen = False
 
         def frozensetattr(self, key, value) -> None:
@@ -52,7 +54,7 @@ def frozen(logger: Logger) -> None:
             else:
                 object.__setattr__(self, key, value)
 
-        def init_decorator(func):
+        def init_decorator(func: Any) -> Any:
             @wraps(func)
             def wrapper(self, *args, **kwargs):
                 func(self, *args, **kwargs)
