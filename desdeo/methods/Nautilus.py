@@ -926,14 +926,18 @@ class ENautilus(InteractiveMethodBase):
 
         """
         # Use clustering to find the most representative points
-        kmeans = KMeans(n_clusters=self.n_points)
-        kmeans.fit(self.obj_sub[self.h])
-        zbars = kmeans.cluster_centers_
+        if self.n_points <= len(self.obj_sub[self.h]):
+            kmeans = KMeans(n_clusters=self.n_points)
+            kmeans.fit(self.obj_sub[self.h])
+            zbars = kmeans.cluster_centers_
+        else:
+            # the subspace has less or an equal amount of points to the number
+            # points to be shown, just use the subspace
+            zbars = self.obj_sub[self.h]
 
         # calculate the intermediate points
-        self.zshi[self.h] = ((self.ith - 1) / self.ith) * self.zshi[
-            self.h - 1
-        ] + (1 / self.ith) * zbars
+        self.zshi[self.h][0: len(zbars)] = ((self.ith - 1) / self.ith) * self.zpref \
+            + (1 / self.ith) * zbars
 
         # calculate the lower bounds
         for r in range(self.objective_vectors.shape[1]):
