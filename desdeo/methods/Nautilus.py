@@ -939,7 +939,7 @@ class ENautilus(InteractiveMethodBase):
                     "intermediate points."
                 )
             )
-            return self.zshi[self.h], self.fhilo[self.h]
+            return self.zshi[self.h-1], self.fhilo[self.h-1]
 
         # Use clustering to find the most representative points
         if self.n_points <= len(self.obj_sub[self.h]):

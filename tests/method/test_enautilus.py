@@ -159,7 +159,6 @@ def test_interact_end(sphere_pareto):
     assert np.any(np.all(np.isclose(res, fs), axis=1))
 
 
-@pytest.mark.snipe
 def test_not_enough_points(sphere_pareto):
     method = ENautilus()
     idxs = np.random.randint(0, len(sphere_pareto[0]), size=5)
@@ -168,3 +167,48 @@ def test_not_enough_points(sphere_pareto):
     _, _ = method.initialize(xs, fs, 10, 10)
     zs, lows = method.iterate()
 
+    zs_is_nans = np.isnan(zs)
+    lows_is_nans = np.isnan(lows)
+
+    assert np.all(np.equal(zs_is_nans, lows_is_nans))
+
+    zs_points = 0
+    for row in ~zs_is_nans:
+        if np.all(row):
+            zs_points += 1
+
+    lows_points = 0
+    for row in ~lows_is_nans:
+        if np.all(row):
+            lows_points += 1
+
+    assert zs_points == lows_points
+
+
+def test_iterate_too_much(sphere_pareto):
+    method = ENautilus()
+    xs, fs = sphere_pareto[0][0:500], sphere_pareto[1][0:500]
+
+    _, _ = method.initialize(xs, fs, 10, 10)
+
+    left = method.ith
+    while left > 1:
+        zs, lows = method.iterate()
+        left = method.interact(zs[0], lows[0])
+
+    last_zs, last_lows = zs, lows
+
+    x, f = method.interact(zs[0], lows[0])
+
+    method.iterate()
+    method.iterate()
+
+    much_zs, much_lows = method.iterate()
+
+    assert np.all(np.isclose(last_zs, much_zs))
+    assert np.all(np.isclose(last_lows, much_lows))
+
+    much_x, much_f = method.interact(last_zs[0], last_lows[0])
+
+    assert np.all(np.isclose(x, much_x))
+    assert np.all(np.isclose(f, much_f))
