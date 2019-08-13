@@ -756,7 +756,7 @@ class ENautilus(InteractiveMethodBase):
 
         """
         if val < 1:
-            msg = "Number of itearions must be greater than zero."
+            msg = "Number of iterations must be greater than zero."
             logger.debug(msg)
             raise InteractiveMethodError(msg)
 
@@ -924,7 +924,23 @@ class ENautilus(InteractiveMethodBase):
                 np.ndarray: The lower bounds of the reachable values from each
                 intermediate point.
 
+        Note:
+            If the requested number of points cannot be generated, the
+            resulting arrays containing the intermediate points and bounds will
+            be padded with NaNs.
+
         """
+        if self.ith == 1:
+            logger.info(
+                (
+                    "Trying to iterate past the last iteration. Please call "
+                    "interact with the final preference to generate the final "
+                    "solution. Returning the most recent "
+                    "intermediate points."
+                )
+            )
+            return self.zshi[self.h], self.fhilo[self.h]
+
         # Use clustering to find the most representative points
         if self.n_points <= len(self.obj_sub[self.h]):
             kmeans = KMeans(n_clusters=self.n_points)
@@ -933,17 +949,23 @@ class ENautilus(InteractiveMethodBase):
         else:
             # the subspace has less or an equal amount of points to the number
             # points to be shown, just use the subspace
+            msg = (
+                "Could not generate the requested amount of intermediate "
+                "points '{}'. Generating only '{}' points"
+            ).format(self.n_points, len(self.obj_sub[self.h]))
+            logger.info(msg)
             zbars = self.obj_sub[self.h]
 
         # calculate the intermediate points
-        self.zshi[self.h][0: len(zbars)] = ((self.ith - 1) / self.ith) * self.zpref \
-            + (1 / self.ith) * zbars
+        self.zshi[self.h][0 : len(zbars)] = (  # noqa
+            (self.ith - 1) / self.ith
+        ) * self.zpref + (1 / self.ith) * zbars
 
         # calculate the lower bounds
         for r in range(self.objective_vectors.shape[1]):
             col_mask = np.full(self.objective_vectors.shape[1], True)
             col_mask[r] = False
-            for i in range(self.n_points):
+            for i in range(len(zbars)):
                 mask = np.all(
                     self.zshi[self.h, i, col_mask]
                     >= self.obj_sub[self.h][:, col_mask],
@@ -956,8 +978,10 @@ class ENautilus(InteractiveMethodBase):
 
         # calculate the distances to the pareto front for each representative
         # point
-        self.d[self.h] = (
-            np.linalg.norm(self.zshi[self.h] - self.nadir, axis=1)
+        self.d[self.h][0:len(zbars)] = (
+            np.linalg.norm(
+                self.zshi[self.h][0 : len(zbars)] - self.nadir, axis=1  # noqa
+            )
             / np.linalg.norm(zbars - self.nadir, axis=1)
         ) * 100
 
@@ -965,7 +989,7 @@ class ENautilus(InteractiveMethodBase):
 
     def interact(  # type: ignore
         self, preferred_point: np.ndarray, lower_bounds: np.ndarray
-    ) -> Union[None, Tuple[np.ndarray, np.ndarray]]:
+    ) -> Union[int, Tuple[np.ndarray, np.ndarray]]:
         """Specify the next preferred point from which to iterate in the next
         iteration. The lower bounds of the reachable values from the preferred
         point are also expected. This point does not necessarely need to be a
@@ -978,9 +1002,9 @@ class ENautilus(InteractiveMethodBase):
             from the preferred point.
 
         Returns:
-            Union[None, Tuple[np.ndarray, np.ndarray]]: None if invoked with
-            iterations still left. Otherwise a tuple containing:
-                np.ndarray: The final pareto optimal solution.
+            Union[int, Tuple[np.ndarray, np.ndarray]]: The number of iterations
+                left, if not invoked on the last iteration. Otherwise a tuple
+                containing: np.ndarray: The final pareto optimal solution.
                 np.ndarray: The corresponding objevtive vector to the pareto
                 optimal solution.
 
@@ -1032,4 +1056,4 @@ class ENautilus(InteractiveMethodBase):
         self.ith -= 1
         self.h += 1
 
-        return None
+        return self.ith

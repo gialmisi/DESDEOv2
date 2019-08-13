@@ -157,3 +157,14 @@ def test_interact_end(sphere_pareto):
     _, res = method.interact(zs[r], f_lows[r])
 
     assert np.any(np.all(np.isclose(res, fs), axis=1))
+
+
+@pytest.mark.snipe
+def test_not_enough_points(sphere_pareto):
+    method = ENautilus()
+    idxs = np.random.randint(0, len(sphere_pareto[0]), size=5)
+    xs, fs = sphere_pareto[0][idxs], sphere_pareto[1][idxs]
+
+    _, _ = method.initialize(xs, fs, 10, 10)
+    zs, lows = method.iterate()
+
