@@ -900,10 +900,10 @@ class ENautilus(InteractiveMethodBase):
 
         # initialize the reachable subsets (None at the zeroth position,
         # because we want to use h to access them)
-        self.par_sub = [None] * (self.n_iters + 1)
-        self.obj_sub = [None] * (self.n_iters + 1)
+        self.par_sub = [None] * (self.n_iters)
+        self.obj_sub = [None] * (self.n_iters)
 
-        self.h = 1
+        self.h = 0
         self.ith = self.n_iters
         self.par_sub[self.h] = self.pareto_front
         self.obj_sub[self.h] = self.objective_vectors
@@ -930,7 +930,7 @@ class ENautilus(InteractiveMethodBase):
             be padded with NaNs.
 
         """
-        if self.ith == 1:
+        if self.ith == 0:
             logger.info(
                 (
                     "Trying to iterate past the last iteration. Please call "
@@ -972,9 +972,11 @@ class ENautilus(InteractiveMethodBase):
                     axis=1,
                 )
 
-                self.fhilo[self.h, i, r] = np.min(
-                    self.obj_sub[self.h][mask, r]
-                )
+                # if the mask if full of false, do nothing
+                if not np.all(~mask):
+                    self.fhilo[self.h, i, r] = np.min(
+                        self.obj_sub[self.h][mask, r]
+                    )
 
         # calculate the distances to the pareto front for each representative
         # point

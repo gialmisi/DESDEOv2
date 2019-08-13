@@ -6,6 +6,7 @@ BBLUE='\033[0;34;5m'
 NC='\033[0m'
 
 MODULE_DIR='./desdeo/'
+EXAMPLE_DIR'./notebooks/'
 TEST_DIR='./tests/'
 LINE_LENGTH=79
 

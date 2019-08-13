@@ -1,8 +1,12 @@
+Sphinx==2.1.2
 black==19.3b0
+desdeo==0.2.1
 flake8==3.7.7
 isort==4.3.21
+matplotlib==3.1.1
 mypy==0.711
 numpy==1.16.4
 pipreqs==0.4.9
 pytest==4.6.3
-Sphinx==2.1.2
+pytest==5.0.0
+scipy==1.3.0

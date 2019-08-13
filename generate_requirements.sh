@@ -8,7 +8,7 @@ DEV_BASE_REQS='./requirements-dev-base.txt'
 printf "${GREEN}Generating requirements file for the user${NC}\n"
 
 # Generate dependencies for the user
-pipreqs --use-local --print $MODULE_DIR | sort | uniq -u > $OUTPUT
+pipreqs --use-local --print $MODULE_DIR $EXAMPLE_DIR | sort | uniq -u >> $OUTPUT
 
 # Generate dependencies for the developer (append)
 # Append the base dev requirements
