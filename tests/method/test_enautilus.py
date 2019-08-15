@@ -41,17 +41,17 @@ def test_initialization(sphere_pareto):
     assert method.n_iters == 10
     assert method.n_points == 5
 
-    assert np.all(np.isclose(method.zshi[0, :], method.nadir))
+    assert np.all(np.isnan(method.zshi))
 
     assert method.zshi.shape == (10, 5, 3)
     assert method.fhilo.shape == (10, 5, 3)
     assert method.d.shape == (10, 5)
 
-    assert method.h == 1
+    assert method.h == 0
     assert method.ith == 10
 
-    assert np.all(np.isclose(method.obj_sub[1], method.objective_vectors))
-    assert np.all(np.isclose(method.par_sub[1], method.pareto_front))
+    assert np.all(np.isclose(method.obj_sub[0], method.objective_vectors))
+    assert np.all(np.isclose(method.par_sub[0], method.pareto_front))
 
     assert np.all(np.isclose(method.zpref, method.nadir))
 
@@ -92,16 +92,16 @@ def test_iterate(sphere_pareto):
         "Close this to continue."
     )
     ax.scatter(
-        method.obj_sub[1][:, 0],
-        method.obj_sub[1][:, 1],
-        method.obj_sub[1][:, 2],
+        method.obj_sub[0][:, 0],
+        method.obj_sub[0][:, 1],
+        method.obj_sub[0][:, 2],
         s=0.1,
         c="blue",
     )
     ax.scatter(
-        method.zshi[1, :, 0],
-        method.zshi[1, :, 1],
-        method.zshi[1, :, 2],
+        method.zshi[0, :, 0],
+        method.zshi[0, :, 1],
+        method.zshi[0, :, 2],
         c="green",
     )
     ax.scatter(method.nadir[0], method.nadir[1], method.nadir[2], c="red")
@@ -116,7 +116,7 @@ def test_interact_once(sphere_pareto):
 
     method.interact(zs[0], fslow[0])
 
-    assert method.h == 2
+    assert method.h == 1
     assert method.ith == 9
 
     assert len(method.obj_sub[method.h]) <= len(method.obj_sub[method.h - 1])
@@ -191,10 +191,9 @@ def test_iterate_too_much(sphere_pareto):
 
     _, _ = method.initialize(xs, fs, 10, 10)
 
-    left = method.ith
-    while left > 1:
+    while method.ith > 1:
         zs, lows = method.iterate()
-        left = method.interact(zs[0], lows[0])
+        method.interact(zs[0], lows[0])
 
     last_zs, last_lows = zs, lows
 

@@ -888,7 +888,6 @@ class ENautilus(InteractiveMethodBase):
             np.nan,
             dtype=np.float,
         )
-        self.zshi[0, :] = self.nadir
 
         self.fhilo = np.full(
             (self.n_iters, self.n_points, self.objective_vectors.shape[1]),
@@ -930,7 +929,7 @@ class ENautilus(InteractiveMethodBase):
             be padded with NaNs.
 
         """
-        if self.ith == 0:
+        if self.ith <= 1:
             logger.info(
                 (
                     "Trying to iterate past the last iteration. Please call "
