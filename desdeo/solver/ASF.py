@@ -200,7 +200,7 @@ class ReferencePointASF(ASFBase):
         z_nad = self.__nadir_point
         z_uto = self.__utopian_point
 
-        max_term = np.max(mu * (f - q))
-        sum_term = roo * np.sum((f - q) / (z_nad - z_uto))
+        max_term = np.max(mu * (f - q), axis=-1)
+        sum_term = roo * np.sum((f - q) / (z_nad - z_uto), axis=-1)
 
         return max_term + sum_term

@@ -2,20 +2,20 @@
 
 """
 
-
+from desdeo.solver.ASF import ReferencePointASF
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
 
-a = np.array([[np.cos(th), np.sin(th)] for th in np.linspace(0, np.pi/2, 100)])
+objectives = np.zeros((10, 5))
+reference = np.ones(5)
+preference = np.full(5, 2)
 
-kmeans = KMeans(n_clusters=8)
-kmeans.fit(a)
+# print(objectives)
+# print(reference)
 
-c = kmeans.cluster_centers_
+# print(np.max(preference * (objectives - reference), axis=1))
 
-plt.scatter(a[:, 0], a[:, 1], c='b', alpha=0.1)
-plt.scatter(c[:, 0], c[:, 1], c='r')
+print(0.5 * (np.sum((objectives - reference) / (np.zeros(5) - np.ones(5)), axis=-1)))
 
-plt.show()
+asf = ReferencePointASF(np.ones(5), np.ones(5), np.ones(5)-1)
+
+res = asf(objectives, reference)
