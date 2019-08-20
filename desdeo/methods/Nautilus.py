@@ -17,6 +17,7 @@ from desdeo.methods.InteractiveMethod import (
 )
 from desdeo.problem.Problem import ProblemBase
 from desdeo.solver.ASF import ReferencePointASF
+from desdeo.solver.NumericalMethods import NumericalMethodBase, ScipyDE
 from desdeo.solver.PointSolver import IdealAndNadirPointSolver
 from desdeo.solver.ScalarSolver import (
     ASFScalarSolver,
@@ -66,12 +67,15 @@ class Nautilus(InteractiveMethodBase):
             self.problem.n_of_objectives
         )
 
-        self.__scalar_solver: ASFScalarSolver = ASFScalarSolver(self.problem)
+        self.__numerical_method: NumericalMethodBase = ScipyDE()
+        self.__scalar_solver: ASFScalarSolver = ASFScalarSolver(
+            self.problem, self.__numerical_method
+        )  # noqa
         self.__asf: ReferencePointASF = ReferencePointASF(None, None, None)
         self.__scalar_solver.asf = self.__asf
 
         self.__epsilon_solver: EpsilonConstraintScalarSolver = EpsilonConstraintScalarSolver(  # noqa: E501
-            self.problem
+            self.problem, self.__numerical_method
         )
 
         # flags for the iteration phase
@@ -362,17 +366,23 @@ class Nautilus(InteractiveMethodBase):
         # Check if the ideal and nadir points are set
         if self.problem.ideal is None and self.problem.nadir is None:
             # Both missing, compute both
-            solver = IdealAndNadirPointSolver(self.problem)
+            solver = IdealAndNadirPointSolver(
+                self.problem, self.__numerical_method
+            )
             self.problem.ideal, self.problem.nadir = solver.solve()
 
         elif self.problem.ideal is None:
             # ideal missing, compute it
-            solver = IdealAndNadirPointSolver(self.problem)
+            solver = IdealAndNadirPointSolver(
+                self.problem, self.__numerical_method
+            )
             self.problem.ideal, _ = solver.solve()
 
         elif self.problem.nadir is None:
             # nadir missing, compute it
-            solver = IdealAndNadirPointSolver(self.problem)
+            solver = IdealAndNadirPointSolver(
+                self.problem, self.__numerical_method
+            )
             _, self.problem.nadir = solver.solve()
 
         self.h = 0
@@ -938,7 +948,7 @@ class ENautilus(InteractiveMethodBase):
                     "intermediate points."
                 )
             )
-            return self.zshi[self.h-1], self.fhilo[self.h-1]
+            return self.zshi[self.h - 1], self.fhilo[self.h - 1]
 
         # Use clustering to find the most representative points
         if self.n_points <= len(self.obj_sub[self.h]):
@@ -979,7 +989,7 @@ class ENautilus(InteractiveMethodBase):
 
         # calculate the distances to the pareto front for each representative
         # point
-        self.d[self.h][0:len(zbars)] = (
+        self.d[self.h][0 : len(zbars)] = (  # noqa
             np.linalg.norm(
                 self.zshi[self.h][0 : len(zbars)] - self.nadir, axis=1  # noqa
             )

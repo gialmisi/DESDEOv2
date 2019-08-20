@@ -3,18 +3,26 @@ import logging
 import logging.config
 from abc import abstractmethod
 from os import path
-from typing import Callable, Tuple
+from typing import Tuple
 
 import numpy as np
-from scipy.optimize import OptimizeResult, differential_evolution
 
 from desdeo.problem.Problem import ProblemBase
+from desdeo.solver.NumericalMethods import NumericalMethodBase
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"
 )
 logging.config.fileConfig(fname=log_conf_path, disable_existing_loggers=False)
 logger = logging.getLogger(__file__)
+
+
+class PointSolverError(Exception):
+    """Raised when an error related to the PointSolvers is encountered.
+
+    """
+
+    pass
 
 
 class PointSolverBase(abc.ABC):
@@ -27,14 +35,6 @@ class PointSolverBase(abc.ABC):
     def solve(self) -> np.ndarray:
         """Solves for the points and returns them in an array."""
         pass
-
-
-class PointSolverError(Exception):
-    """Raised when an error related to the PointSolvers is encountered.
-
-    """
-
-    pass
 
 
 class IdealAndNadirPointSolver(PointSolverBase):
@@ -51,8 +51,25 @@ class IdealAndNadirPointSolver(PointSolverBase):
 
     """
 
-    def __init__(self, problem: ProblemBase):
+    def __init__(self, problem: ProblemBase, method: NumericalMethodBase):
         self.__problem = problem
+        self.__method = method
+
+    @property
+    def problem(self) -> ProblemBase:
+        return self.__problem
+
+    @problem.setter
+    def problem(self, val: ProblemBase):
+        self.__problem = val
+
+    @property
+    def method(self) -> NumericalMethodBase:
+        return self.__method
+
+    @method.setter
+    def method(self, val: NumericalMethodBase):
+        self.__method = val
 
     def _evaluator(
         self, decision_vector: np.ndarray, objective_index: int
@@ -93,33 +110,17 @@ class IdealAndNadirPointSolver(PointSolverBase):
             The nadir point if an estimate, and therefore might be a bad
             representation of the real nadir point.
         """
-        pay_off_table: np.ndarray
-        func: Callable
-        args: Tuple[int]
-        tol: float
-        bounds: np.ndarray
-        polish: bool
-        results: OptimizeResult
-
         pay_off_table = np.zeros(
             (self.__problem.n_of_objectives, self.__problem.n_of_objectives)
         )
         func = self._evaluator
-        tol = 0.0001  # We want an accurate ideal point
-        bounds = self.__problem.get_variable_bounds()
-        polish = True
+        bounds = self.problem.get_variable_bounds()
 
         for ind in range(self.__problem.n_of_objectives):
             args = (ind,)
-            results = differential_evolution(
-                func, bounds, args=args, tol=tol, polish=polish
-            )
+            x = self.method.run(func, bounds, args)
 
-            if results.success:
-                pay_off_table[ind], _ = self.__problem.evaluate(results.x)
-            else:
-                logger.debug(results.message)
-                raise PointSolverError(results.message)
+            pay_off_table[ind], _ = self.__problem.evaluate(x)
 
         # The ideal point can be found on the diagonal of the PO-table,
         # and an estimate of the nadir by taking the maximun value of each

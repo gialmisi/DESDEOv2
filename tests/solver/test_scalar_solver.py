@@ -3,6 +3,7 @@ import pytest
 from pytest import approx
 
 from desdeo.solver.ASF import SimpleASF
+from desdeo.solver.NumericalMethods import ScipyDE
 from desdeo.solver.ScalarSolver import (
     ASFScalarSolver,
     EpsilonConstraintScalarSolver,
@@ -12,18 +13,26 @@ from desdeo.solver.ScalarSolver import (
 
 
 @pytest.fixture
-def WeightedCylinderSolver(CylinderProblem):
-    return WeightingMethodScalarSolver(CylinderProblem)
+def Scipyde_method():
+    method = ScipyDE(
+        {"tol": 0.000001, "popsize": 10, "maxiter": 50000, "polish": True}
+    )
+    return method
 
 
 @pytest.fixture
-def SimpleASFCylinderSolver(CylinderProblem):
-    return ASFScalarSolver(CylinderProblem)
+def WeightedCylinderSolver(CylinderProblem, Scipyde_method):
+    return WeightingMethodScalarSolver(CylinderProblem, Scipyde_method)
 
 
 @pytest.fixture
-def EpsilonConstraintCylinderSolver(CylinderProblem):
-    return EpsilonConstraintScalarSolver(CylinderProblem)
+def SimpleASFCylinderSolver(CylinderProblem, Scipyde_method):
+    return ASFScalarSolver(CylinderProblem, Scipyde_method)
+
+
+@pytest.fixture
+def EpsilonConstraintCylinderSolver(CylinderProblem, Scipyde_method):
+    return EpsilonConstraintScalarSolver(CylinderProblem, Scipyde_method)
 
 
 @pytest.fixture

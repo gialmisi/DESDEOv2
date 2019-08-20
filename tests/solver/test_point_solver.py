@@ -1,11 +1,21 @@
 import numpy as np
+import pytest
 from pytest import approx
 
+from desdeo.solver.NumericalMethods import ScipyDE
 from desdeo.solver.PointSolver import IdealAndNadirPointSolver
 
 
-def test_ideal_and_nadir_point_evaluator(CylinderProblem):
-    solver = IdealAndNadirPointSolver(CylinderProblem)
+@pytest.fixture
+def Scipyde_method():
+    method = ScipyDE(
+        {"tol": 0.000001, "popsize": 10, "maxiter": 50000, "polish": True}
+    )
+    return method
+
+
+def test_ideal_and_nadir_point_evaluator(CylinderProblem, Scipyde_method):
+    solver = IdealAndNadirPointSolver(CylinderProblem, Scipyde_method)
     decision_vector = np.array([7, 15])
 
     res_0 = solver._evaluator(decision_vector, 0)
@@ -24,8 +34,8 @@ def test_ideal_and_nadir_point_evaluator(CylinderProblem):
     assert np.all(res_bads == np.inf)
 
 
-def test_ideal_and_nadir_point_solver(CylinderProblem):
-    solver = IdealAndNadirPointSolver(CylinderProblem)
+def test_ideal_and_nadir_point_solver(CylinderProblem, Scipyde_method):
+    solver = IdealAndNadirPointSolver(CylinderProblem, Scipyde_method)
     ideal, nadir = solver.solve()
     expected_ideal = np.array([785.476703213788, -2945.321652556771, 0.0])
 
@@ -33,8 +43,10 @@ def test_ideal_and_nadir_point_solver(CylinderProblem):
     assert np.all(np.greater(nadir, ideal))
 
 
-def test_ideal_and_nadir_point_solver_river(RiverPollutionProblem):
-    solver = IdealAndNadirPointSolver(RiverPollutionProblem)
+def test_ideal_and_nadir_point_solver_river(
+    RiverPollutionProblem, Scipyde_method
+):
+    solver = IdealAndNadirPointSolver(RiverPollutionProblem, Scipyde_method)
     ideal, nadir = solver.solve()
     expected_ideal = np.array([-6.34, -3.44, -7.50, 0.0])
 

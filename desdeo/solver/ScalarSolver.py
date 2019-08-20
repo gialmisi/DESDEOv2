@@ -9,10 +9,10 @@ from os import path
 from typing import Any, Callable, Tuple
 
 import numpy as np
-from scipy.optimize import OptimizeResult, differential_evolution
 
 from desdeo.problem.Problem import ProblemBase
 from desdeo.solver.ASF import ASFBase
+from desdeo.solver.NumericalMethods import NumericalMethodBase
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"
@@ -44,8 +44,9 @@ class ScalarSolverBase(abc.ABC):
 
     """
 
-    def __init__(self, problem: ProblemBase):
+    def __init__(self, problem: ProblemBase, method: NumericalMethodBase):
         self.__problem = problem
+        self.__method = method
 
     @property
     def problem(self) -> ProblemBase:
@@ -54,6 +55,14 @@ class ScalarSolverBase(abc.ABC):
     @problem.setter
     def problem(self, val: ProblemBase):
         self.__problem = val
+
+    @property
+    def method(self) -> NumericalMethodBase:
+        return self.__method
+
+    @method.setter
+    def method(self, val: NumericalMethodBase):
+        self.__method = val
 
     @abstractmethod
     def solve(
@@ -92,8 +101,8 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
 
     """
 
-    def __init__(self, problem: ProblemBase):
-        super().__init__(problem)
+    def __init__(self, problem: ProblemBase, method: NumericalMethodBase):
+        super().__init__(problem, method)
         self.__weights: np.ndarray
 
     @property
@@ -164,30 +173,15 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
             related to the usage of infinity (np.inf).
 
         """
-        self.__weights = weights
+        self.weights = weights
 
-        func: Callable
-        bounds: np.ndarray
-        polish: bool
-        results: OptimizeResult
-
-        # Scipy DE solver handles only scalar valued functions
-        func = lambda x: self._evaluator(x)[0]  # noqa: E731
+        func = lambda x, *args: self._evaluator(x)[0]  # noqa: E731
         bounds = self.problem.get_variable_bounds()
-        polish = True
 
-        results = differential_evolution(func, bounds, polish=polish)
+        # results = differential_evolution(func, bounds, polish=polish)
+        x = self.method.run(func, bounds)
 
-        if results.success:
-            decision_variables: np.ndarray = results.x
-
-            return (
-                decision_variables,
-                self.problem.evaluate(decision_variables),
-            )
-        else:
-            logger.debug(results.message)
-            raise ScalarSolverError(results.message)
+        return (x, self.problem.evaluate(x))
 
 
 class EpsilonConstraintScalarSolver(ScalarSolverBase):
@@ -211,8 +205,8 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
 
     """
 
-    def __init__(self, problem: ProblemBase):
-        super().__init__(problem)
+    def __init__(self, problem: ProblemBase, method: NumericalMethodBase):
+        super().__init__(problem, method)
         self.__epsilons: np.ndarray
         self.__to_be_minimized: int
 
@@ -294,41 +288,14 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
 
         """
         self.to_be_minimized = to_be_minimized
-        func: Callable
-        tol: float
-        popsize: int
-        maxiter: int
-        bounds: np.ndarray
-        polish: bool
-        results: OptimizeResult
 
         # Scipy DE solver handles only scalar valued functions
-        func = lambda x: self._evaluator(x)[0]  # noqa: E731
-        tol = 0.00001
-        popsize = 10
-        maxiter = 10000
+        func = lambda x, *args: self._evaluator(x)[0]  # noqa: E731
         bounds = self.problem.get_variable_bounds()
-        polish = True
 
-        results = differential_evolution(
-            func,
-            bounds,
-            tol=tol,
-            popsize=popsize,
-            polish=polish,
-            maxiter=maxiter,
-        )
+        x = self.method.run(func, bounds)
 
-        if results.success:
-            decision_variables: np.ndarray = results.x
-
-            return (
-                decision_variables,
-                self.problem.evaluate(decision_variables),
-            )
-        else:
-            logger.debug(results.message)
-            raise ScalarSolverError(results.message)
+        return (x, self.problem.evaluate(x))
 
 
 class ASFScalarSolver(ScalarSolverBase):
@@ -345,8 +312,8 @@ class ASFScalarSolver(ScalarSolverBase):
 
     """
 
-    def __init__(self, problem: ProblemBase):
-        super().__init__(problem)
+    def __init__(self, problem: ProblemBase, method: NumericalMethodBase):
+        super().__init__(problem, method)
         self.__asf: ASFBase
         self.__reference_point: np.ndarray
 
@@ -416,40 +383,15 @@ class ASFScalarSolver(ScalarSolverBase):
             element.
 
         """
-        self.__reference_point = reference_point
+        self.reference_point = reference_point
 
         func: Callable
-        tol: float
-        popsize: int
-        maxiter: int
         bounds: np.ndarray
-        polish: bool
-        results: OptimizeResult
 
         # Scipy DE solver handles only scalar valued functions
-        func = lambda x: self._evaluator(x)[0]  # noqa: E731
-        tol = 0.0000001
-        popsize = 10
-        maxiter = 500000
+        func = lambda x, *args: self._evaluator(x)[0]  # noqa: E731
         bounds = self.problem.get_variable_bounds()
-        polish = True
 
-        results = differential_evolution(
-            func,
-            bounds,
-            tol=tol,
-            popsize=popsize,
-            polish=polish,
-            maxiter=maxiter,
-        )
+        x = self.method.run(func, bounds)
 
-        if results.success:
-            decision_variables: np.ndarray = results.x
-
-            return (
-                decision_variables,
-                self.problem.evaluate(decision_variables),
-            )
-        else:
-            logger.debug(results.message)
-            raise ScalarSolverError(results.message)
+        return (x, self.problem.evaluate(x))
