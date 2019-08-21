@@ -32,8 +32,7 @@ class InteractiveMethodBase(abc.ABC):
     """
 
     def __init__(self, problem: Optional[ProblemBase] = None):
-        if problem is not None:
-            self.__problem: ProblemBase = problem
+        self.__problem: ProblemBase = problem
 
     @property
     def problem(self) -> ProblemBase:

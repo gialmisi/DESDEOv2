@@ -1,5 +1,4 @@
 import logging
-import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,25 +11,10 @@ from desdeo.methods.Nautilus import ENautilus
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
-@pytest.fixture
-def sphere_pareto():
-    """Return a tuple of points representing the angle parametrized surface of
-    a sphere's positive octant.  The first element represents the theta and phi
-    angle values and the second the corresponding cartesian (x,y,z)
-    coordinates
-
-    """
-    dirname = os.path.dirname(__file__)
-    relative = "../../data/pareto_front_3d_sphere_1st_octant_surface.dat"
-    filename = os.path.join(dirname, relative)
-    p = np.loadtxt(filename)
-    return (p[:, :2], p[:, 2:])
-
-
 def test_initialization(sphere_pareto):
     method = ENautilus()
     xs, fs = sphere_pareto
-    nadir, ideal = method.initialize(xs, fs, 10, 5)
+    nadir, ideal = method.initialize(10, 5, xs, fs)
 
     assert np.all(np.isclose(method.pareto_front, xs))
     assert np.all(np.isclose(method.objective_vectors, fs))
@@ -79,7 +63,7 @@ def test_initialization(sphere_pareto):
 def test_iterate(sphere_pareto):
     method = ENautilus()
     xs, fs = sphere_pareto
-    nadir, ideal = method.initialize(xs, fs, 10, 8)
+    nadir, ideal = method.initialize(10, 8, xs, fs)
     zs, fs = method.iterate()
 
     fig = plt.figure()
@@ -111,7 +95,7 @@ def test_iterate(sphere_pareto):
 def test_interact_once(sphere_pareto):
     method = ENautilus()
     xs, fs = sphere_pareto
-    nadir, ideal = method.initialize(xs, fs, 10, 5)
+    nadir, ideal = method.initialize(10, 5, xs, fs)
     zs, fslow = method.iterate()
 
     method.interact(zs[0], fslow[0])
@@ -145,7 +129,7 @@ def test_interact_end(sphere_pareto):
     method = ENautilus()
     xs, fs = sphere_pareto
     total_iter = 10
-    nadir, ideal = method.initialize(xs, fs, total_iter, 5)
+    nadir, ideal = method.initialize(total_iter, 5, xs, fs)
 
     for i in range(total_iter - 1):
         # till the penultimate iteration
@@ -164,7 +148,7 @@ def test_not_enough_points(sphere_pareto):
     idxs = np.random.randint(0, len(sphere_pareto[0]), size=5)
     xs, fs = sphere_pareto[0][idxs], sphere_pareto[1][idxs]
 
-    _, _ = method.initialize(xs, fs, 10, 10)
+    _, _ = method.initialize(10, 10, xs, fs)
     zs, lows = method.iterate()
 
     zs_is_nans = np.isnan(zs)
@@ -189,7 +173,7 @@ def test_iterate_too_much(sphere_pareto):
     method = ENautilus()
     xs, fs = sphere_pareto[0][0:500], sphere_pareto[1][0:500]
 
-    _, _ = method.initialize(xs, fs, 10, 10)
+    _, _ = method.initialize(10, 10, xs, fs)
 
     while method.ith > 1:
         zs, lows = method.iterate()

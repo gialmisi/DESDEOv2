@@ -74,13 +74,13 @@ class ProblemBase(ABC):
         self.__n_of_variables = val
 
     @abstractmethod
-    def get_variable_bounds(self):
+    def get_variable_bounds(self) -> Union[None, np.ndarray]:
         pass
 
     @abstractmethod
     def evaluate(
         self, decision_variables: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, Union[np.ndarray, None]]:
         """Evaluates the problem using an ensemble of input vectors.
 
         Args:
@@ -91,8 +91,8 @@ class ProblemBase(ABC):
             (tuple): tuple containing:
                 solutions (np.ndarray): The corresponding objective function
                 values for each input vector.
-                constraints (np.ndarray): The constraint values of the problem
-                corresponding each input vector.
+                constraints (Union[np.ndarray, None]): The constraint values
+                of the problem corresponding each input vector.
 
         """
         pass
@@ -277,7 +277,7 @@ class ScalarMOProblem(ProblemBase):
 
     def evaluate(
         self, decision_variables: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, Union[None, np.ndarray]]:
         """Evaluates the problem using an ensemble of input vectors.
 
         Args:
@@ -292,7 +292,7 @@ class ScalarMOProblem(ProblemBase):
                 corresponding each input vector.
 
         """
-        # Reshape decision_variabless with single row to work with the code
+        # Reshape decision_variables with single row to work with the code
         shape = np.shape(decision_variables)
         if len(shape) == 1:
             decision_variables = np.reshape(decision_variables, (1, shape[0]))
@@ -338,3 +338,99 @@ class ScalarMOProblem(ProblemBase):
                 )
 
         return (objective_values, constraint_values)
+
+
+class ScalarDataProblem(ProblemBase):
+    """Defines a problem with pre-computed data representing a multiobjective
+    optimiation problem with scalar valued objective functions.
+
+    Parameters:
+        variables(np.ndarray): A 2D vector of variables. Each row represents a
+        solution with the value for each variables defined on the columns.
+        objectives(np.ndarray): A 2D vector of objective function values. Each
+        row represents one objective vector with the values for the invidual
+        objective functions defined on the columns.
+
+    Note:
+        It is assumed that the variables and objectives follow a direct
+        one-to-one mapping, i.e., the objective values on the ith row in
+        'objectives' should represent the solution of the multiobjective
+        problem when evaluated with the variables on the ith row in
+        'variables'.
+
+    """
+
+    def __init__(self, variables: np.ndarray, objectives: np.ndarray):
+        super().__init__()
+        self.__variables: np.ndarray = variables
+        self.__objectives: np.ndarray = objectives
+        # Used to indicate if a model has been built to represent the model.
+        # Used in the evaluation.
+        self.__model_exists: bool = False
+
+        try:
+            self.n_of_variables = self.variables.shape[1]
+        except IndexError as e:
+            msg = (
+                "Check the variable dimensions. Is it a 2D array? "
+                "Encountered '{}'".format(str(e))
+            )
+            logger.debug(msg)
+            raise ProblemError(msg)
+
+        try:
+            self.n_of_objectives = self.objectives.shape[1]
+        except IndexError as e:
+            msg = (
+                "Check the objective dimensions. Is it a 2D array? "
+                "Encountered '{}'".format(str(e))
+            )
+            logger.debug(msg)
+            raise ProblemError(msg)
+
+        self.nadir = np.max(self.objectives, axis=0)
+        self.ideal = np.min(self.objectives, axis=0)
+
+    @property
+    def variables(self) -> np.ndarray:
+        return self.__variables
+
+    @variables.setter
+    def variables(self, val: np.ndarray):
+        self.__variables = val
+
+    @property
+    def objectives(self) -> np.ndarray:
+        return self.__objectives
+
+    @objectives.setter
+    def objectives(self, val: np.ndarray):
+        self.__objectives = val
+
+    def get_variable_bounds(self):
+        return np.stack(
+            (np.min(self.variables, axis=0), np.max(self.variables, axis=0)),
+            axis=1,
+        )
+
+    def evaluate(
+        self, decision_variables: np.ndarray
+    ) -> Tuple[np.ndarray, Union[np.ndarray, None]]:
+        if not self.__model_exists:
+            logger.warning(
+                "Warning: Approximating the closest known point in "
+                "a data based problem. Consider building a model "
+                "first (NOT IMPLEMENTED)"
+            )
+            idx = np.unravel_index(
+                np.linalg.norm(
+                    self.variables - decision_variables, axis=1
+                ).argmin(),
+                self.objectives.shape,
+                order="F",
+            )[0]
+            return self.objectives[idx]
+        else:
+            msg = "Models not implemented yet for data based problems."
+            logger.error(msg)
+            raise NotImplementedError(msg)

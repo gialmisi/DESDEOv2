@@ -15,7 +15,11 @@ from desdeo.methods.InteractiveMethod import (
     InteractiveMethodBase,
     InteractiveMethodError,
 )
-from desdeo.problem.Problem import ProblemBase
+from desdeo.problem.Problem import (
+    ProblemBase,
+    ScalarDataProblem,
+    ScalarMOProblem,
+)
 from desdeo.solver.ASF import ReferencePointASF
 from desdeo.solver.NumericalMethods import NumericalMethodBase, ScipyDE
 from desdeo.solver.PointSolver import IdealAndNadirPointSolver
@@ -653,6 +657,15 @@ class ENautilus(InteractiveMethodBase):
     def __init__(self, problem: Optional[ProblemBase] = None):
         super().__init__(problem)
 
+        if isinstance(problem, ScalarMOProblem):
+            msg = (
+                "Currently E-NAUTILUS works only with the "
+                "ScalarDataProblem problem class or by sypplying "
+                "the pareto set and objectives manually."
+            )
+            logger.error(msg)
+            raise NotImplementedError(msg)
+
         # The full pareto front
         self.__pareto_front: np.ndarray = None
         # Corresponding pareto optimal objective vectors for the full front
@@ -860,30 +873,49 @@ class ENautilus(InteractiveMethodBase):
 
     def initialize(  # type: ignore
         self,
-        pareto_front: np.ndarray,
-        objective_vectors: np.ndarray,
         n_iters: int,
         n_points: int,
+        pareto_front: Optional[np.ndarray] = None,
+        objective_vectors: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Initialize the method with the input data required by E-NAUTILUS.
+        """Initialize the method with the input data required by E-NAUTILUS by
+        either the given problem in the initializer of the class or explicitly
+        given pareto and objective data.
 
         Arguments:
-            pareto_front (np.ndarray): Vectors preresenting the pareto optimal
-            solutions of a MOO problem.
-            objective_vectors (np.ndarray): The objective vectors that
-            correspond to the pareto optimal solutions.
             n_iters (int): The number of total iterations to be carried out.
             n_points (int): The number of points to be shown to the DM each
             iteration.
+            pareto_front (Optional[np.ndarray]): Vectors preresenting the
+            pareto optimal solutions of a MOO problem.
+            objective_vectors (Optional[np.ndarray]): The objective vectors
+            that correspond to the pareto optimal solutions.
 
         Returns:
             Tuple[np.ndarray, np.ndarray]: A tuple containing:
                 np.ndarray: The nadir point of the problem.
                 np.ndarray: The ideal point of the problem.
 
+        Note:
+            The data to be used must be available in the underlying problem OR
+            given explicitly.
+
         """
-        self.pareto_front = pareto_front
-        self.objective_vectors = objective_vectors
+        if isinstance(self.problem, ScalarDataProblem):
+            self.pareto_front = self.problem.variables
+            self.objective_vectors = self.problem.objectives
+
+        elif pareto_front is not None and objective_vectors is not None:
+            self.pareto_front = pareto_front
+            self.objective_vectors = objective_vectors
+
+        else:
+            msg = (
+                "Either a pre computed problem must be defined in this "
+                "class or the pareto front and objective vectors must "
+            )
+            logger.error(msg)
+            raise InteractiveMethodError(msg)
 
         self.n_iters = n_iters
         self.n_points = n_points
