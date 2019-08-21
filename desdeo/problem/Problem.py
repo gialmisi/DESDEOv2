@@ -35,15 +35,57 @@ class ProblemBase(ABC):
 
     """
 
+    def __init__(self):
+        self.__nadir: np.ndarray = None
+        self.__ideal: np.ndarray = None
+        self.__n_of_objectives: int = 0
+        self.__n_of_variables: int = 0
+
+    @property
+    def nadir(self) -> np.ndarray:
+        return self.__nadir
+
+    @nadir.setter
+    def nadir(self, val: np.ndarray):
+        self.__nadir = val
+
+    @property
+    def ideal(self) -> np.ndarray:
+        return self.__ideal
+
+    @ideal.setter
+    def ideal(self, val: np.ndarray):
+        self.__ideal = val
+
+    @property
+    def n_of_objectives(self) -> int:
+        return self.__n_of_objectives
+
+    @n_of_objectives.setter
+    def n_of_objectives(self, val: int):
+        self.__n_of_objectives = val
+
+    @property
+    def n_of_variables(self) -> int:
+        return self.__n_of_variables
+
+    @n_of_variables.setter
+    def n_of_variables(self, val: int):
+        self.__n_of_variables = val
+
+    @abstractmethod
+    def get_variable_bounds(self):
+        pass
+
     @abstractmethod
     def evaluate(
-        self, population: np.ndarray
+        self, decision_variables: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Evaluates the problem using an ensemble of input vectors.
 
         Args:
-            population (np.ndarray): An array of decision variable input
-            vectors.
+            decision_variables (np.ndarray): An array of decision variable
+            input vectors.
 
         Returns:
             (tuple): tuple containing:
@@ -53,34 +95,6 @@ class ProblemBase(ABC):
                 corresponding each input vector.
 
         """
-        pass
-
-    @property
-    def n_of_objectives(self):
-        pass
-
-    @property
-    def n_of_variables(self):
-        pass
-
-    @property
-    def ideal(self):
-        pass
-
-    @ideal.setter
-    def ideal(self, val):
-        pass
-
-    @property
-    def nadir(self):
-        pass
-
-    @nadir.setter
-    def nadir(self, val):
-        pass
-
-    @abstractmethod
-    def get_variable_bounds(self):
         pass
 
 
@@ -120,36 +134,38 @@ class ScalarMOProblem(ProblemBase):
         nadir: Optional[np.ndarray] = None,
         ideal: Optional[np.ndarray] = None,
     ) -> None:
+        super().__init__()
         self.__objectives: List[ScalarObjective] = objectives
         self.__variables: List[Variable] = variables
         self.__constraints: List[ScalarConstraint] = constraints
 
-        self.__n_of_objectives: int = len(self.__objectives)
-        self.__n_of_variables: int = len(self.__variables)
-        if self.__constraints is not None:
-            self.__n_of_constraints: int = len(self.__constraints)
+        self.n_of_objectives: int = len(self.objectives)
+        self.n_of_variables: int = len(self.variables)
+
+        if self.constraints is not None:
+            self.__n_of_constraints: int = len(self.constraints)
         else:
             self.__n_of_constraints = 0
 
         # Nadir vector must be the same size as the number of objectives
         if nadir is not None:
-            if len(nadir) != self.__n_of_objectives:
+            if len(nadir) != self.n_of_objectives:
                 msg = (
                     "The length of the nadir vector does not match the"
                     "number of objectives: Length nadir {}, number of "
                     "objectives {}."
-                ).format(len(nadir), self.__n_of_objectives)
+                ).format(len(nadir), self.n_of_objectives)
                 logger.debug(msg)
                 raise ProblemError(msg)
 
         # Ideal vector must be the same size as the number of objectives
         if ideal is not None:
-            if len(ideal) != self.__n_of_objectives:
+            if len(ideal) != self.n_of_objectives:
                 msg = (
                     "The length of the ideal vector does not match the"
                     "number of objectives: Length ideal {}, number of "
                     "objectives {}."
-                ).format(len(ideal), self.__n_of_objectives)
+                ).format(len(ideal), self.n_of_objectives)
                 logger.debug(msg)
                 raise ProblemError(msg)
 
@@ -163,44 +179,40 @@ class ScalarMOProblem(ProblemBase):
                 logger.debug(msg)
                 raise ProblemError(msg)
 
-        self.__nadir = nadir
-        self.__ideal = ideal
-
-    @property
-    def n_of_objectives(self) -> int:
-        return self.__n_of_objectives
-
-    @property
-    def n_of_variables(self) -> int:
-        return self.__n_of_variables
+        self.nadir = nadir
+        self.ideal = ideal
 
     @property
     def n_of_constraints(self) -> int:
         return self.__n_of_constraints
 
-    @property
-    def nadir(self) -> np.ndarray:
-        return self.__nadir
-
-    @nadir.setter
-    def nadir(self, val: np.ndarray):
-        self.__nadir = val
-
-    @property
-    def ideal(self) -> np.ndarray:
-        return self.__ideal
-
-    @ideal.setter
-    def ideal(self, val: np.ndarray):
-        self.__ideal = val
+    @n_of_constraints.setter
+    def n_of_constraints(self, val: int):
+        self.__n_of_constraints = val
 
     @property
     def objectives(self) -> List[ScalarObjective]:
         return self.__objectives
 
+    @objectives.setter
+    def objectives(self, val: List[ScalarObjective]):
+        self.__objectives = val
+
     @property
-    def constraint(self) -> List[ScalarConstraint]:
+    def variables(self) -> List[Variable]:
+        return self.__variables
+
+    @variables.setter
+    def variables(self, val: List[Variable]):
+        self.__variables = val
+
+    @property
+    def constraints(self) -> List[ScalarConstraint]:
         return self.__constraints
+
+    @constraints.setter
+    def constraints(self, val: List[ScalarConstraint]):
+        self.__constraints = val
 
     def get_variable_bounds(self) -> Union[np.ndarray, None]:
         """Return the upper and lower bounds of each decision variable present
@@ -213,9 +225,9 @@ class ScalarMOProblem(ProblemBase):
            as a 2D numpy array. If undefined variables, return None instead.
 
         """
-        if self.__variables is not None:
+        if self.variables is not None:
             bounds = np.ndarray((self.n_of_variables, 2))
-            for ind, var in enumerate(self.__variables):
+            for ind, var in enumerate(self.variables):
                 bounds[ind] = np.array(var.get_bounds())
             return bounds
         else:
@@ -233,7 +245,7 @@ class ScalarMOProblem(ProblemBase):
             List[str]: Names of the variables in the order they were added.
 
         """
-        return [var.name for var in self.__variables]
+        return [var.name for var in self.variables]
 
     def get_objective_names(self) -> List[str]:
         """Return the names of the objectives present in the problem in the
@@ -243,7 +255,7 @@ class ScalarMOProblem(ProblemBase):
             List[str]: Names of the objectives in the order they were added.
 
         """
-        return [obj.name for obj in self.__objectives]
+        return [obj.name for obj in self.objectives]
 
     def get_variable_lower_bounds(self) -> np.ndarray:
         """Return the lower bounds of each variable as a list. The order of the bounds
@@ -252,7 +264,7 @@ class ScalarMOProblem(ProblemBase):
         Returns:
             np.ndarray: An array with the lower bounds of the variables.
         """
-        return np.array([var.get_bounds()[0] for var in self.__variables])
+        return np.array([var.get_bounds()[0] for var in self.variables])
 
     def get_variable_upper_bounds(self) -> np.ndarray:
         """Return the upper bounds of each variable as a list. The order of the bounds
@@ -261,16 +273,16 @@ class ScalarMOProblem(ProblemBase):
         Returns:
             np.ndarray: An array with the upper bounds of the variables.
         """
-        return np.array([var.get_bounds()[1] for var in self.__variables])
+        return np.array([var.get_bounds()[1] for var in self.variables])
 
     def evaluate(
-        self, population: np.ndarray
+        self, decision_variables: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Evaluates the problem using an ensemble of input vectors.
 
         Args:
-            population (np.ndarray): An array of decision variable input
-            vectors.
+            decision_variables (np.ndarray): An array of decision variable
+            input vectors.
 
         Returns:
             (tuple): tuple containing:
@@ -280,24 +292,24 @@ class ScalarMOProblem(ProblemBase):
                 corresponding each input vector.
 
         """
-        # Reshape populations with single row to work with the code
-        shape = np.shape(population)
+        # Reshape decision_variabless with single row to work with the code
+        shape = np.shape(decision_variables)
         if len(shape) == 1:
-            population = np.reshape(population, (1, shape[0]))
+            decision_variables = np.reshape(decision_variables, (1, shape[0]))
 
-        (n_rows, n_cols) = np.shape(population)
+        (n_rows, n_cols) = np.shape(decision_variables)
 
-        if n_cols != self.__n_of_variables:
+        if n_cols != self.n_of_variables:
             msg = (
                 "The length of the input vectors does not match the number "
                 "of variables in the problem: Input vector length {}, "
                 "number of variables {}."
-            ).format(n_cols, self.__n_of_variables)
+            ).format(n_cols, self.n_of_variables)
             logger.debug(msg)
             raise ProblemError(msg)
 
         objective_values: np.ndarray = np.ndarray(
-            (n_rows, self.__n_of_objectives), dtype=float
+            (n_rows, self.n_of_objectives), dtype=float
         )
         if self.__n_of_constraints > 0:
             constraint_values: np.ndarray = np.ndarray(
@@ -307,17 +319,21 @@ class ScalarMOProblem(ProblemBase):
             constraint_values = None
 
         # Calculate the objective values
-        for (col_i, objective) in enumerate(self.__objectives):
+        for (col_i, objective) in enumerate(self.objectives):
             objective_values[:, col_i] = np.array(
-                list(map(objective.evaluate, population))
+                list(map(objective.evaluate, decision_variables))
             )
 
         # Calculate the constraint values
         if constraint_values is not None:
-            for (col_i, constraint) in enumerate(self.__constraints):
+            for (col_i, constraint) in enumerate(self.constraints):
                 constraint_values[:, col_i] = np.array(
                     list(
-                        map(constraint.evaluate, population, objective_values)
+                        map(
+                            constraint.evaluate,
+                            decision_variables,
+                            objective_values,
+                        )
                     )
                 )
 
