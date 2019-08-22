@@ -7,6 +7,8 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa
 
 from desdeo.methods.InteractiveMethod import InteractiveMethodError
 from desdeo.methods.Nautilus import ENautilus
+from desdeo.problem.Problem import ScalarDataProblem
+
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
@@ -195,3 +197,39 @@ def test_iterate_too_much(sphere_pareto):
 
     assert np.all(np.isclose(x, much_x))
     assert np.all(np.isclose(f, much_f))
+
+
+def test_dataproblem(sphere_pareto):
+    xs, fs = sphere_pareto
+    data_prob = ScalarDataProblem(xs, fs)
+    method_data = ENautilus(data_prob)
+    method_expl = ENautilus()
+
+    method_data.initialize(10, 7)
+    method_expl.initialize(10, 7, xs, fs)
+
+    np.random.seed(1)
+    zs_data, lows_data = method_data.iterate()
+    np.random.seed(1)
+    zs_expl, lows_expl = method_expl.iterate()
+
+    assert np.all(np.isclose(zs_data, zs_expl))
+    assert np.all(np.isclose(lows_data, lows_expl))
+
+    for i in range(3):
+        np.random.seed(1)
+        method_data.interact(zs_data[i], lows_data[i])
+        zs_data, lows_data = method_data.iterate()
+
+        np.random.seed(1)
+        method_expl.interact(zs_expl[i], lows_expl[i])
+        zs_expl, lows_expl = method_expl.iterate()
+
+    assert np.all(np.isclose(zs_data, zs_expl))
+    assert np.all(np.isclose(lows_data, lows_expl))
+
+    np.random.seed(None)
+
+    with pytest.raises(InteractiveMethodError):
+        method2 = ENautilus()
+        method2.initialize(5, 10)

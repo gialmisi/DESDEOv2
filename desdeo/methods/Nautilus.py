@@ -913,6 +913,7 @@ class ENautilus(InteractiveMethodBase):
             msg = (
                 "Either a pre computed problem must be defined in this "
                 "class or the pareto front and objective vectors must "
+                "be explicitly given."
             )
             logger.error(msg)
             raise InteractiveMethodError(msg)
