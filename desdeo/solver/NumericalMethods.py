@@ -62,7 +62,7 @@ class NumericalMethodBase(ABC):
             positional arguments to be passed to the evaluator.
 
         Returns:
-            The solution evaluated by the numerical method.
+            The solution computed by the numerical method.
 
         """
         pass
@@ -139,3 +139,69 @@ class ScipyDE(NumericalMethodBase):
             ).format(results.message)
             logger.debug(msg)
             raise NumericalMethodError(msg)
+
+
+class DiscreteMinimizer(NumericalMethodBase):
+    """Finds the minimum value using a pre-computed set of points.
+
+    """
+
+    def minimizer(
+        evaluator: Callable[[np.ndarray, Any], np.ndarray],
+        bounds: np.ndarray,
+        variables: Optional[np.ndarray] = None,
+        objectives: Optional[np.ndarray] = None,
+        evaluator_args: Optional[Tuple[Any]] = (),
+    ) -> np.ndarray:
+        if variables is None:
+            msg = "Variables must be specified for the minimizer to work."
+            logger.error(msg)
+            raise NumericalMethodError(msg)
+        if objectives is None:
+            msg = "Objectives must be specified for the minimizer to work."
+            logger.error(msg)
+            raise NumericalMethodError(msg)
+
+        mask_lower_bounds = np.all(np.greater(variables, bounds[:, 0]), axis=1)
+        mask_upper_bounds = np.all(np.less(variables, bounds[:, 1]), axis=1)
+        mask_feasible = np.logical_and(mask_lower_bounds, mask_upper_bounds)
+
+        feasible_objectives = objectives[mask_feasible]
+        feasible_variables = variables[mask_feasible]
+
+        res = evaluator(feasible_objectives)
+        idx = np.argmin(res)
+
+        return feasible_variables[idx]
+
+    def __init__(self):
+        super().__init__(np.min)
+
+    def run(
+        self,
+        evaluator: Callable[[np.ndarray, Any], np.ndarray],
+        bounds: np.ndarray,
+        evaluator_args: Optional[Tuple[Any]] = None,
+    ) -> np.ndarray:
+        """Run the minimizer minimizing the given evaluator and
+        following the given variable bounds.
+
+        Parameters:
+            evaluator(Callable[[np.ndarray, Any], np.ndarray]):
+            A function to be evaluated and minimized.
+            bounds(np.ndarray): The bounds of the variables as a 2D array with
+            each row representing the lower (first column) and upper (last
+            column) bounds of each variable.
+            evaluator_args(Optional[Tuple[Any]]): An optional tuple containing
+            positional arguments to be passed to the evaluator.
+
+        Returns:
+            np.ndarray: An array containing the optimal solution reached by the
+            differential evolution method.
+
+        Raises:
+            NumericalMethodError: Something goes wrong with the evaluator or
+            the minimization.
+
+        """
+        pass
