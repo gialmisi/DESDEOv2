@@ -7,7 +7,7 @@ from desdeo.problem.Constraint import (
     constraint_function_factory,
 )
 from desdeo.problem.Objective import ScalarObjective
-from desdeo.problem.Problem import ScalarMOProblem
+from desdeo.problem.Problem import ScalarMOProblem, ScalarDataProblem
 from desdeo.problem.Variable import Variable
 
 
@@ -170,3 +170,15 @@ def sphere_pareto():
     filename = os.path.join(dirname, relative)
     p = np.loadtxt(filename)
     return (p[:, :2], p[:, 2:])
+
+
+@pytest.fixture
+def simple_data_problem():
+    xs = np.array([
+        [1, 2, 3],
+        [2, 2, 2],
+        [2.2, 3.3, 6.6],
+        [-1.05, -2.05, 3.1],
+    ])
+    fs = np.array([[np.sum(x), np.linalg.norm(x)] for x in xs])
+    return ScalarDataProblem(xs, fs)

@@ -48,6 +48,8 @@ class NumericalMethodBase(ABC):
         evaluator: Callable[[np.ndarray, Any], np.ndarray],
         bounds: np.ndarray,
         evaluator_args: Optional[Tuple[Any]] = None,
+        variables: Optional[np.ndarray] = None,
+        objectives: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Passes the appropiate parameters to the underlying method and
         returns the solution given by the method.
@@ -147,11 +149,12 @@ class DiscreteMinimizer(NumericalMethodBase):
     """
 
     def minimizer(
+        self,
         evaluator: Callable[[np.ndarray, Any], np.ndarray],
         bounds: np.ndarray,
         variables: Optional[np.ndarray] = None,
         objectives: Optional[np.ndarray] = None,
-        evaluator_args: Optional[Tuple[Any]] = (),
+        args: Optional[Any] = {},
     ) -> np.ndarray:
         if variables is None:
             msg = "Variables must be specified for the minimizer to work."
@@ -162,26 +165,38 @@ class DiscreteMinimizer(NumericalMethodBase):
             logger.error(msg)
             raise NumericalMethodError(msg)
 
-        mask_lower_bounds = np.all(np.greater(variables, bounds[:, 0]), axis=1)
-        mask_upper_bounds = np.all(np.less(variables, bounds[:, 1]), axis=1)
-        mask_feasible = np.logical_and(mask_lower_bounds, mask_upper_bounds)
+        if bounds is not None:
+            mask_lower_bounds = np.all(
+                np.greater(variables, bounds[:, 0]), axis=1
+            )
+            mask_upper_bounds = np.all(
+                np.less(variables, bounds[:, 1]), axis=1
+            )
+            mask_feasible = np.logical_and(
+                mask_lower_bounds, mask_upper_bounds
+            )
 
-        feasible_objectives = objectives[mask_feasible]
-        feasible_variables = variables[mask_feasible]
+            feasible_objectives = objectives[mask_feasible]
+            feasible_variables = variables[mask_feasible]
+        else:
+            feasible_objectives = objectives
+            feasible_variables = variables
 
-        res = evaluator(feasible_objectives)
+        res = evaluator(feasible_variables, feasible_objectives, **args)
         idx = np.argmin(res)
 
         return feasible_variables[idx]
 
     def __init__(self):
-        super().__init__(np.min)
+        super().__init__(self.minimizer)
 
     def run(
         self,
         evaluator: Callable[[np.ndarray, Any], np.ndarray],
         bounds: np.ndarray,
-        evaluator_args: Optional[Tuple[Any]] = None,
+        evaluator_args: Optional[Any] = {},
+        variables: Optional[np.ndarray] = None,
+        objectives: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Run the minimizer minimizing the given evaluator and
         following the given variable bounds.
@@ -204,4 +219,12 @@ class DiscreteMinimizer(NumericalMethodBase):
             the minimization.
 
         """
-        pass
+        results = self.method(
+            evaluator,
+            bounds,
+            variables=variables,
+            objectives=objectives,
+            args=evaluator_args
+        )
+
+        return results

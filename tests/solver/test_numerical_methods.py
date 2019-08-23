@@ -38,29 +38,48 @@ def simple_data():
     return xs, fs, bounds
 
 
-def test_minimizer_method(minimizer_method, simple_data):
+@pytest.fixture
+def evaluator():
+    evaluator = lambda x, y: np.sum(y, axis=1)  # noqa
+    return evaluator
+
+
+def test_minimizer_method(minimizer_method, simple_data, evaluator):
     fun = minimizer_method
     xs, fs, bounds = simple_data
 
-    evaluator = lambda x: np.sum(x, axis=1)  # noqa
-
-    res = fun(evaluator, bounds, xs, fs)
+    res = fun(None, evaluator, bounds, xs, fs)
     assert np.all(np.isclose(res, [1.5, 3]))
 
 
-def test_minimizer_no_data(minimizer_method, simple_data):
+def test_minimizer_missing_parameters(minimizer_method, simple_data,
+                                      evaluator):
     fun = minimizer_method
     xs, fs, bounds = simple_data
-    evaluator = lambda x: np.sum(x, axis=1)  # noqa
 
     # no var or objs
     with pytest.raises(NumericalMethodError):
-        fun(evaluator, bounds)
+        fun(None, evaluator, bounds)
 
     # var no objs
     with pytest.raises(NumericalMethodError):
-        fun(evaluator, bounds, variables=xs)
+        fun(None, evaluator, bounds, variables=xs)
 
     # no var objs
     with pytest.raises(NumericalMethodError):
-        fun(evaluator, bounds, objectives=fs)
+        fun(None, evaluator, bounds, objectives=fs)
+
+    # None bounds, or empty
+    res = fun(None, evaluator, None, xs, fs)
+    assert np.array_equiv(res, [1, 2])
+
+
+def test_discrete_minimizer_numerical_method(simple_data, evaluator):
+    xs, fs, bounds = simple_data
+    method = DiscreteMinimizer()
+
+    res1 = method.run(evaluator, bounds=None, variables=xs, objectives=fs)
+    res2 = method.run(evaluator, bounds, variables=xs, objectives=fs)
+
+    assert np.array_equiv(res1, [1, 2])
+    assert np.array_equiv(res2, [1.5, 3])

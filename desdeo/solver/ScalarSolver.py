@@ -6,13 +6,17 @@ import logging
 import logging.config
 from abc import abstractmethod
 from os import path
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 import numpy as np
 
 from desdeo.problem.Problem import ProblemBase
 from desdeo.solver.ASF import ASFBase
-from desdeo.solver.NumericalMethods import NumericalMethodBase
+from desdeo.solver.NumericalMethods import (
+    DiscreteMinimizer,
+    NumericalMethodBase,
+    ScipyDE,
+)
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"
@@ -65,6 +69,15 @@ class ScalarSolverBase(abc.ABC):
         self.__method = val
 
     @abstractmethod
+    def _evaluator(
+        self,
+        problem: ProblemBase,
+        decision_vectors: np.ndarray,
+        objective_vectors: Optional[np.ndarray],
+    ) -> np.ndarray:
+        pass
+
+    @abstractmethod
     def solve(
         self, args: Any
     ) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
@@ -103,7 +116,7 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
 
     def __init__(self, problem: ProblemBase, method: NumericalMethodBase):
         super().__init__(problem, method)
-        self.__weights: np.ndarray
+        self.__weights: np.ndarray = None
 
     @property
     def weights(self) -> np.ndarray:
@@ -113,7 +126,11 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
     def weights(self, val: np.ndarray):
         self.__weights = val
 
-    def _evaluator(self, decision_vectors: np.ndarray) -> np.ndarray:
+    def _evaluator(
+        self,
+        decision_vectors: np.ndarray,
+        objective_vectors: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
         """A helper function to transform the output of the MOO problem
         to a weighted sum.
 
@@ -133,14 +150,19 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
             minimized.
 
         """
-        objective_vectors: np.ndarray
         constraint_vectors: np.ndarray
-        objective_vectors, constraint_vectors = self.problem.evaluate(
-            decision_vectors
-        )
+        if objective_vectors is None:
+            objective_vectors, constraint_vectors = self.problem.evaluate(
+                decision_vectors
+            )
+        else:
+            constraint_vectors = None
+
         weighted_sums = np.zeros(len(objective_vectors))
         for ind, elem in enumerate(objective_vectors):
-            if np.any(constraint_vectors[ind] < 0):
+            if constraint_vectors is not None and np.any(
+                constraint_vectors[ind] < 0
+            ):
                 # If any of the constraints is broken, set the sum to
                 # infinity
                 weighted_sums[ind] = np.inf
@@ -174,12 +196,20 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
 
         """
         self.weights = weights
-
-        func = lambda x, *args: self._evaluator(x)[0]  # noqa: E731
         bounds = self.problem.get_variable_bounds()
 
-        # results = differential_evolution(func, bounds, polish=polish)
-        x = self.method.run(func, bounds)
+        if isinstance(self.method, DiscreteMinimizer):
+            x = self.method.run(
+                self._evaluator,
+                bounds,
+                variables=self.problem.variables,
+                objectives=self.problem.objectives,
+            )
+        elif isinstance(self.method, ScipyDE):
+            # Scipy does not work with vectors, so we just feed it the first
+            # value in the vector returned by the evaluator
+            func = lambda x, *args: self._evaluator(x)[0]  # noqa: E731
+            x = self.method.run(func, bounds)
 
         return (x, self.problem.evaluate(x))
 
@@ -208,7 +238,7 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
     def __init__(self, problem: ProblemBase, method: NumericalMethodBase):
         super().__init__(problem, method)
         self.__epsilons: np.ndarray
-        self.__to_be_minimized: int
+        self.__to_be_minimized: int = 0
 
     @property
     def epsilons(self) -> np.ndarray:
@@ -234,7 +264,11 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
     def to_be_minimized(self, val: int):
         self.__to_be_minimized = val
 
-    def _evaluator(self, decision_vector: np.ndarray) -> np.ndarray:
+    def _evaluator(
+        self,
+        decision_vector: np.ndarray,
+        objective_vectors: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
         """A helper function to express the original problem as an epsilon
            constraint problem.
 
@@ -251,15 +285,20 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
 
         """
 
-        objective_vectors: np.ndarray
         constraints: np.ndarray
         epsilon_values: np.ndarray
 
-        objective_vectors, constraints = self.problem.evaluate(decision_vector)
+        if objective_vectors is None:
+            objective_vectors, constraints = self.problem.evaluate(
+                decision_vector
+            )
+        else:
+            constraints = None
+
         epsilon_values = np.zeros(len(objective_vectors))
 
         for (ind, elem) in enumerate(objective_vectors):
-            if (constraints is not None) and (np.any(constraints[ind] < 0)):
+            if constraints is not None and np.any(constraints[ind] < 0):
                 # suicide method for broken constraints
                 epsilon_values[ind] = np.inf
                 continue
@@ -288,12 +327,20 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
 
         """
         self.to_be_minimized = to_be_minimized
-
-        # Scipy DE solver handles only scalar valued functions
-        func = lambda x, *args: self._evaluator(x)[0]  # noqa: E731
         bounds = self.problem.get_variable_bounds()
 
-        x = self.method.run(func, bounds)
+        if isinstance(self.method, DiscreteMinimizer):
+            x = self.method.run(
+                self._evaluator,
+                bounds,
+                variables=self.problem.variables,
+                objectives=self.problem.objectives,
+            )
+        elif isinstance(self.method, ScipyDE):
+            # Scipy does not work with vectors, so we just feed it the first
+            # value in the vector returned by the evaluator
+            func = lambda x, *args: self._evaluator(x)[0]  # noqa: E731
+            x = self.method.run(func, bounds)
 
         return (x, self.problem.evaluate(x))
 
@@ -333,7 +380,11 @@ class ASFScalarSolver(ScalarSolverBase):
     def reference_point(self, val: np.ndarray):
         self.__reference_point = val
 
-    def _evaluator(self, decision_vector: np.ndarray) -> np.ndarray:
+    def _evaluator(
+        self,
+        decision_vectors: np.ndarray,
+        objective_vectors: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
         """A helper function to express the original problem as an ASF
            problem.
 
@@ -356,15 +407,21 @@ class ASFScalarSolver(ScalarSolverBase):
         constraints: np.ndarray
         asf_values: np.ndarray
 
-        objective_vectors, constraints = self.problem.evaluate(decision_vector)
+        if objective_vectors is None:
+            objective_vectors, constraints = self.problem.evaluate(
+                decision_vectors
+            )
+        else:
+            constraints = None
+
         asf_values = np.zeros(len(objective_vectors))
 
         for (ind, elem) in enumerate(objective_vectors):
-            if (constraints is not None) and (np.any(constraints[ind] < 0)):
+            if constraints is not None and np.any(constraints[ind] < 0):
                 # suicide method for broken constraints
                 asf_values[ind] = np.inf
             else:
-                asf_values[ind] = self.__asf(elem, self.__reference_point)
+                asf_values[ind] = self.asf(elem, self.reference_point)
 
         return asf_values
 
@@ -375,7 +432,7 @@ class ASFScalarSolver(ScalarSolverBase):
 
         Args:
             reference_point (np.ndarray): An array representing the reference
-            point in the objective function space used the is ASF.
+            point in the objective function space used in the is ASF.
         Returns:
             Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]: A tuple
             containing the decision variables as the first element and the
@@ -384,14 +441,19 @@ class ASFScalarSolver(ScalarSolverBase):
 
         """
         self.reference_point = reference_point
-
-        func: Callable
-        bounds: np.ndarray
-
-        # Scipy DE solver handles only scalar valued functions
-        func = lambda x, *args: self._evaluator(x)[0]  # noqa: E731
         bounds = self.problem.get_variable_bounds()
 
-        x = self.method.run(func, bounds)
+        if isinstance(self.method, DiscreteMinimizer):
+            x = self.method.run(
+                self._evaluator,
+                bounds,
+                variables=self.problem.variables,
+                objectives=self.problem.objectives,
+            )
+        elif isinstance(self.method, ScipyDE):
+            # Scipy does not work with vectors, so we just feed it the first
+            # value in the vector returned by the evaluator
+            func = lambda x, *args: self._evaluator(x)[0]  # noqa: E731
+            x = self.method.run(func, bounds)
 
         return (x, self.problem.evaluate(x))

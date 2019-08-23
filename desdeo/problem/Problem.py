@@ -364,6 +364,10 @@ class ScalarDataProblem(ProblemBase):
         super().__init__()
         self.__variables: np.ndarray = variables
         self.__objectives: np.ndarray = objectives
+        # epsilon is used when computing the bounds. We don't want to exclude
+        # any of the solutions that contain border values.
+        # See get_variable_bounds
+        self.__epsilon: float = 1e-6
         # Used to indicate if a model has been built to represent the model.
         # Used in the evaluation.
         self.__model_exists: bool = False
@@ -409,7 +413,8 @@ class ScalarDataProblem(ProblemBase):
 
     def get_variable_bounds(self):
         return np.stack(
-            (np.min(self.variables, axis=0), np.max(self.variables, axis=0)),
+            (np.min(self.variables, axis=0) - self.__epsilon,
+             np.max(self.variables, axis=0) + self.__epsilon),
             axis=1,
         )
 

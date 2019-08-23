@@ -109,7 +109,7 @@ class SimpleASF(ASFBase):
             np.where(
                 np.isnan(reference_point),
                 -np.inf,
-                self.__weights * (objective_vector - reference_point),
+                self.weights * (objective_vector - reference_point),
             )
         )
 
