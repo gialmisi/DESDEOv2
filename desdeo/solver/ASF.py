@@ -7,6 +7,8 @@ import logging
 import logging.config
 from abc import abstractmethod
 from os import path
+from typing import List
+
 
 import numpy as np
 
@@ -204,3 +206,81 @@ class ReferencePointASF(ASFBase):
         sum_term = roo * np.sum((f - q) / (z_nad - z_uto), axis=-1)
 
         return max_term + sum_term
+
+
+class MaxOfTwoASF(ASFBase):
+    """Implements the ASF as defined in eq. 3.1 `Miettinen 2016`_
+
+    .. _Miettinen 2006:
+        Mietttinen, K. & Mäkelä, Marko M.
+        Synchronous approach in interactive multiobjective optimization
+        European Journal of Operational Research, 2006, 170, 909-922
+
+    """
+
+    def __init__(
+        self,
+        nadir: np.ndarray,
+        ideal: np.ndarray,
+        lt_inds: List[int],
+        lte_inds: List[int],
+        rho: float = 1e-6,
+    ):
+        self.__nadir = nadir
+        self.__ideal = ideal
+        self.__lt_inds = lt_inds
+        self.__lte_inds = lte_inds
+        self.__rho = rho
+
+    @property
+    def nadir(self) -> np.ndarray:
+        return self.__nadir
+
+    @nadir.setter
+    def nadir(self, val: np.ndarray):
+        self.__nadir = val
+
+    @property
+    def ideal(self) -> np.ndarray:
+        return self.__ideal
+
+    @ideal.setter
+    def ideal(self, val: np.ndarray):
+        self.__ideal = val
+
+    @property
+    def lt_inds(self) -> List[int]:
+        return self.__lt_inds
+
+    @lt_inds.setter
+    def lt_inds(self, val: List[int]):
+        self.__lt_inds = val
+
+    @property
+    def lte_inds(self) -> List[int]:
+        return self.__lte_inds
+
+    @lte_inds.setter
+    def lte_inds(self, val: List[int]):
+        self.__lte_inds = val
+
+    @property
+    def rho(self) -> float:
+        return self.__rho
+
+    @rho.setter
+    def rho(self, val: float):
+        self.__rho = val
+
+    def __call__(
+        self, objective_vector: np.ndarray, reference_point: np.ndarray
+    ) -> float:
+        f = objective_vector
+        z = reference_point
+        ii = self.lt_inds
+        jj = self.lte_inds
+
+        lt_term = (f[:, ii] - self.ideal[ii]) / (
+            self.nadir[ii] - (self.ideal[ii] + self.rho)
+        )
+        return lt_term

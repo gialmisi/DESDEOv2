@@ -371,6 +371,7 @@ class ScalarDataProblem(ProblemBase):
         # Used to indicate if a model has been built to represent the model.
         # Used in the evaluation.
         self.__model_exists: bool = False
+        self.__constraints: List[ScalarConstraint] = []
 
         try:
             self.n_of_variables = self.variables.shape[1]
@@ -411,12 +412,36 @@ class ScalarDataProblem(ProblemBase):
     def objectives(self, val: np.ndarray):
         self.__objectives = val
 
+    @property
+    def constraints(self) -> List[ScalarConstraint]:
+        return self.__constraints
+
+    @constraints.setter
+    def constraints(self, val: List[ScalarConstraint]):
+        self.__constraints = val
+
     def get_variable_bounds(self):
         return np.stack(
-            (np.min(self.variables, axis=0) - self.__epsilon,
-             np.max(self.variables, axis=0) + self.__epsilon),
+            (
+                np.min(self.variables, axis=0) - self.__epsilon,
+                np.max(self.variables, axis=0) + self.__epsilon,
+            ),
             axis=1,
         )
+
+    def evaluate_constraint_values(self) -> Union[np.ndarray, None]:
+        if len(self.constraints) == 0:
+            return None
+
+        constraint_values = np.zeros(
+            (len(self.objectives), len(self.constraints))
+        )
+        for ind, con in enumerate(self.constraints):
+            constraint_values[:, ind] = con.evaluate(
+                self.variables, self.objectives
+            )
+
+        return constraint_values
 
     def evaluate(
         self, decision_variables: np.ndarray
@@ -434,8 +459,10 @@ class ScalarDataProblem(ProblemBase):
                 self.objectives.shape,
                 order="F",
             )[0]
-            return self.objectives[idx]
+
         else:
             msg = "Models not implemented yet for data based problems."
             logger.error(msg)
             raise NotImplementedError(msg)
+
+        return (self.objectives[idx],)

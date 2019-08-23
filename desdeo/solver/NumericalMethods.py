@@ -224,7 +224,7 @@ class DiscreteMinimizer(NumericalMethodBase):
             bounds,
             variables=variables,
             objectives=objectives,
-            args=evaluator_args
+            args=evaluator_args,
         )
 
         return results

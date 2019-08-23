@@ -173,12 +173,13 @@ def sphere_pareto():
 
 
 @pytest.fixture
-def simple_data_problem():
-    xs = np.array([
-        [1, 2, 3],
-        [2, 2, 2],
-        [2.2, 3.3, 6.6],
-        [-1.05, -2.05, 3.1],
-    ])
+def simple_data():
+    xs = np.array([[1, 2, 3], [2, 2, 2], [2.2, 3.3, 6.6], [-1.05, -2.05, 3.1]])
     fs = np.array([[np.sum(x), np.linalg.norm(x)] for x in xs])
+    return xs, fs
+
+
+@pytest.fixture
+def simple_data_problem(simple_data):
+    xs, fs = simple_data
     return ScalarDataProblem(xs, fs)

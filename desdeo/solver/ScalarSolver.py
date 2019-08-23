@@ -384,6 +384,7 @@ class ASFScalarSolver(ScalarSolverBase):
         self,
         decision_vectors: np.ndarray,
         objective_vectors: Optional[np.ndarray] = None,
+        constraints: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """A helper function to express the original problem as an ASF
            problem.
@@ -403,16 +404,13 @@ class ASFScalarSolver(ScalarSolverBase):
 
         """
 
-        objective_vectors: np.ndarray
-        constraints: np.ndarray
         asf_values: np.ndarray
-
-        if objective_vectors is None:
+        if objective_vectors is None and constraints is None:
             objective_vectors, constraints = self.problem.evaluate(
                 decision_vectors
             )
-        else:
-            constraints = None
+        elif constraints is not None:
+            constraints = constraints
 
         asf_values = np.zeros(len(objective_vectors))
 
@@ -422,6 +420,11 @@ class ASFScalarSolver(ScalarSolverBase):
                 asf_values[ind] = np.inf
             else:
                 asf_values[ind] = self.asf(elem, self.reference_point)
+
+        if np.all(asf_values == np.inf):
+            logger.warning(
+                "All asf values are inf, result may " "be not sensical."
+            )
 
         return asf_values
 
@@ -447,6 +450,9 @@ class ASFScalarSolver(ScalarSolverBase):
             x = self.method.run(
                 self._evaluator,
                 bounds,
+                evaluator_args={
+                    "constraints": self.problem.evaluate_constraint_values()
+                },
                 variables=self.problem.variables,
                 objectives=self.problem.objectives,
             )

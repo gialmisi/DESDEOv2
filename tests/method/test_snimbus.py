@@ -45,8 +45,9 @@ def test_starting_point(sphere_nimbus):
 
     method.initialize(3)
 
-    assert not np.all(np.isclose(method.current_point,
-                                 np.array([1.2, 3.2, 4.4])))
+    assert not np.all(
+        np.isclose(method.current_point, np.array([1.2, 3.2, 4.4]))
+    )
 
 
 def test_nadir_and_ideal(sphere_nimbus):
@@ -116,3 +117,13 @@ def test_sort_classificaitons(sphere_nimbus):
     assert method._SNimbus__ind_set_eq[0] == 2
 
     assert method._SNimbus__upper_bounds[0] == (1, 5.0)
+
+
+@pytest.mark.snipe
+def test_iterate(sphere_nimbus):
+    method = sphere_nimbus
+    method.initialize(4, starting_point=np.array([3.2, 4.1, 5.5]))
+
+    method.iterate()
+    method.interact([("<", 0), (">=", 5.0), ("=", 0)])
+    method.iterate()

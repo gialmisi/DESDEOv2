@@ -118,29 +118,37 @@ class ScalarConstraint(ConstraintBase):
         Returns:
             float: A float indicating how the constraint holds.
 
+        Raises:
+            ConstraintError: When something goes wrong evaluating the
+            constraint or the objectives and decision vectors are of wrong
+            shape.
+
         """
-        if len(decision_vector) != self.__n_decision_vars:
+        decision_l = (
+            len(decision_vector)
+            if decision_vector.ndim == 1
+            else decision_vector.shape[1]
+        )
+        if decision_l != self.__n_decision_vars:
             msg = (
                 "Decision decision_vector {} is of wrong lenght: "
                 "Should be {}, but is {}"
-            ).format(
-                decision_vector, self.__n_decision_vars, len(decision_vector)
-            )
+            ).format(decision_vector, self.__n_decision_vars, decision_l)
             logger.debug(msg)
             raise ConstraintError(msg)
 
-        if len(objective_vector) != self.__n_objective_funs:
+        objective_l = (
+            len(objective_vector)
+            if objective_vector.ndim == 1
+            else objective_vector.shape[1]
+        )
+        if objective_l != self.__n_objective_funs:
             msg = (
                 "Objective decision_vector {} is of wrong lenght:"
                 " Should be {}, but is {}"
-            ).format(
-                objective_vector,
-                self.__n_objective_funs,
-                len(objective_vector),
-            )
+            ).format(objective_vector, self.__n_objective_funs, objective_l)
             logger.debug(msg)
             raise ConstraintError(msg)
-
         try:
             result = self.__evaluator(decision_vector, objective_vector)
         except (TypeError, IndexError) as e:

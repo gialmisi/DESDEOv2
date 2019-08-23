@@ -5,7 +5,7 @@ import numpy as np
 from desdeo.solver.NumericalMethods import (
     DiscreteMinimizer,
     NumericalMethodError,
-    )
+)
 
 
 @pytest.fixture
@@ -16,24 +16,11 @@ def minimizer_method():
 
 @pytest.fixture
 def simple_data():
-    xs = np.array([
-        [1, 2],
-        [2.1, 3],
-        [3, 7],
-        [1.5, 3],
-    ])
+    xs = np.array([[1, 2], [2.1, 3], [3, 7], [1.5, 3]])
 
-    fs = np.array([
-        [-1, -3, -2],
-        [3, 5, 3],
-        [-1, -1, -2],
-        [1, 1, 1]
-    ])
+    fs = np.array([[-1, -3, -2], [3, 5, 3], [-1, -1, -2], [1, 1, 1]])
 
-    bounds = np.array([
-        [0.5, 3],
-        [2.5, 10]
-    ])
+    bounds = np.array([[0.5, 3], [2.5, 10]])
 
     return xs, fs, bounds
 
@@ -52,8 +39,9 @@ def test_minimizer_method(minimizer_method, simple_data, evaluator):
     assert np.all(np.isclose(res, [1.5, 3]))
 
 
-def test_minimizer_missing_parameters(minimizer_method, simple_data,
-                                      evaluator):
+def test_minimizer_missing_parameters(
+    minimizer_method, simple_data, evaluator
+):
     fun = minimizer_method
     xs, fs, bounds = simple_data
 

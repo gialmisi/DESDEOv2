@@ -93,6 +93,8 @@ class SNimbus(InteractiveMethodBase):
         self.__n_points: int = 0
         # flag to represent if first iteration
         self.__first_iteration = True
+        # subproblems
+        self.__subproblems: List[ScalarDataProblem] = []
 
     @property
     def pareto_front(self) -> np.ndarray:
@@ -263,6 +265,14 @@ class SNimbus(InteractiveMethodBase):
     def first_iteration(self, val: bool):
         self.__first_iteration = val
 
+    @property
+    def subproblems(self) -> List[ScalarDataProblem]:
+        return self.__subproblems
+
+    @subproblems.setter
+    def subproblems(self, val: List[ScalarDataProblem]):
+        self.__subproblems = val
+
     def _sort_classsifications(self):
         """Sort the objective indices into their corresponding sets and save
         the aspiration and upper bounds set in the classifications.
@@ -367,6 +377,8 @@ class SNimbus(InteractiveMethodBase):
         if self.first_iteration:
             self.first_iteration = False
             return self.current_point
+
+        # subproblem 1
 
     def interact(self, classifications: List[Tuple[str, Optional[float]]]):
         self.classifications = classifications

@@ -2,7 +2,12 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from desdeo.solver.ASF import ASFError, ReferencePointASF, SimpleASF
+from desdeo.solver.ASF import (
+    ASFError,
+    ReferencePointASF,
+    SimpleASF,
+    MaxOfTwoASF,
+)
 
 
 def test_simple_init():
@@ -95,3 +100,16 @@ def test_reference_point_call():
     res = asf(objective, reference)
 
     assert res == approx(expected)
+
+
+@pytest.mark.snipe
+def test_maxoftwo(simple_data):
+    nadir = np.array([50, 20])
+    ideal = np.array([-20, -15])
+    reference = np.array([5, 2])
+    rho = 0.2
+    asf = MaxOfTwoASF(nadir, ideal, [0, 1], [], rho=rho)
+    xs, fs = simple_data
+
+    res = asf(fs, reference)
+    print(res)
