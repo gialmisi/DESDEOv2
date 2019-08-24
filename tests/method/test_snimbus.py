@@ -15,6 +15,14 @@ def sphere_nimbus(sphere_pareto):
     return method
 
 
+@pytest.fixture
+def simple_nimbus(four_dimenional_data_with_extremas):
+    xs, fs, nadir, ideal = four_dimenional_data_with_extremas
+    problem = ScalarDataProblem(xs, fs)
+    method = SNimbus(problem)
+    return method
+
+
 def test_no_pareto_given(sphere_nimbus):
     with pytest.raises(InteractiveMethodError):
         method_bad = SNimbus()
@@ -107,7 +115,7 @@ def test_sort_classificaitons(sphere_nimbus):
     assert method._SNimbus__ind_set_lte[0] == 1
     assert method._SNimbus__ind_set_free[0] == 2
 
-    assert method._SNimbus__aspiration_levels[0] == (1, 3.5)
+    assert method._SNimbus__aspiration_levels[0] == 3.5
 
     method.classifications = [("<", 0), (">=", 5.0), ("=", 0)]
     method._sort_classsifications()
@@ -116,14 +124,15 @@ def test_sort_classificaitons(sphere_nimbus):
     assert method._SNimbus__ind_set_gte[0] == 1
     assert method._SNimbus__ind_set_eq[0] == 2
 
-    assert method._SNimbus__upper_bounds[0] == (1, 5.0)
+    assert method._SNimbus__upper_bounds[0] == 5.0
 
 
 @pytest.mark.snipe
-def test_iterate(sphere_nimbus):
-    method = sphere_nimbus
-    method.initialize(4, starting_point=np.array([3.2, 4.1, 5.5]))
+def test_iterate(simple_nimbus):
+    method = simple_nimbus
+    method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
 
     method.iterate()
-    method.interact([("<", 0), (">=", 5.0), ("=", 0)])
-    method.iterate()
+    method.interact([(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)])
+    res = method.iterate()
+    print(res)

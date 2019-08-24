@@ -20,6 +20,13 @@ from desdeo.problem.Problem import (
     ScalarDataProblem,
 )
 
+from desdeo.problem.Constraint import ScalarConstraint
+
+from desdeo.solver.ScalarSolver import ASFScalarSolver
+from desdeo.solver.NumericalMethods import DiscreteMinimizer
+from desdeo.solver.ASF import MaxOfTwoASF
+
+
 from desdeo.utils.frozen import frozen
 
 
@@ -77,8 +84,8 @@ class SNimbus(InteractiveMethodBase):
         self.__ind_set_gte: List[int] = []
         self.__ind_set_free: List[int] = []
         # bounds
-        self.__aspiration_levels: List[Tuple[int, float]] = []
-        self.__upper_bounds: List[Tuple[int, float]] = []
+        self.__aspiration_levels: np.ndarray = None
+        self.__upper_bounds: np.ndarray = None
         # nadir
         self.__nadir: np.ndarray = None
         # ideal
@@ -94,7 +101,15 @@ class SNimbus(InteractiveMethodBase):
         # flag to represent if first iteration
         self.__first_iteration = True
         # subproblems
-        self.__subproblems: List[ScalarDataProblem] = []
+        self.__sprob_1: ScalarDataProblem = None
+        self.__sprob_2: ScalarDataProblem = None
+        self.__sprob_3: ScalarDataProblem = None
+        self.__sprob_4: ScalarDataProblem = None
+        # solvers for each subproblem
+        self.__solver_1: ASFScalarSolver = None
+        self.__solver_2: ASFScalarSolver = None
+        self.__solver_3: ASFScalarSolver = None
+        self.__solver_4: ASFScalarSolver = None
 
     @property
     def pareto_front(self) -> np.ndarray:
@@ -265,14 +280,6 @@ class SNimbus(InteractiveMethodBase):
     def first_iteration(self, val: bool):
         self.__first_iteration = val
 
-    @property
-    def subproblems(self) -> List[ScalarDataProblem]:
-        return self.__subproblems
-
-    @subproblems.setter
-    def subproblems(self, val: List[ScalarDataProblem]):
-        self.__subproblems = val
-
     def _sort_classsifications(self):
         """Sort the objective indices into their corresponding sets and save
         the aspiration and upper bounds set in the classifications.
@@ -287,20 +294,19 @@ class SNimbus(InteractiveMethodBase):
         self.__ind_set_eq = []
         self.__ind_set_gte = []
         self.__ind_set_free = []
-        self.__aspiration_levels = []
-        self.__upper_bounds = []
+        aspiration_levels = []
+        upper_bounds = []
         for (ind, cls) in enumerate(self.classifications):
             if cls[0] == "<":
                 self.__ind_set_lt.append(ind)
-                print(self.__ind_set_lt)
             elif cls[0] == "<=":
                 self.__ind_set_lte.append(ind)
-                self.__aspiration_levels.append((ind, cls[1]))
+                aspiration_levels.append(cls[1])
             elif cls[0] == "=":
                 self.__ind_set_eq.append(ind)
             elif cls[0] == ">=":
                 self.__ind_set_gte.append(ind)
-                self.__upper_bounds.append((ind, cls[1]))
+                upper_bounds.append(cls[1])
             elif cls[0] == "0":
                 self.__ind_set_free.append(ind)
             else:
@@ -309,6 +315,8 @@ class SNimbus(InteractiveMethodBase):
                 ).format(cls)
                 logger.error(msg)
                 raise InteractiveMethodError(msg)
+        self.__aspiration_levels = np.array(aspiration_levels)
+        self.__upper_bounds = np.array(upper_bounds)
 
     def initialize(
         self,
@@ -378,8 +386,80 @@ class SNimbus(InteractiveMethodBase):
             self.first_iteration = False
             return self.current_point
 
+        solutions: List[np.ndarray] = []
+
         # subproblem 1
+        if self.__sprob_1 is None:
+            # create the subproblem and solver
+            self.__sprob_1 = ScalarDataProblem(
+                self.pareto_front, self.objective_vectors
+            )
+            self.__sprob_1.nadir = self.nadir
+            self.__sprob_1.ideal = self.ideal
+
+            self.__solver_1 = ASFScalarSolver(
+                self.__sprob_1, DiscreteMinimizer()
+            )
+            self.__solver_1.asf = MaxOfTwoASF(self.nadir, self.ideal, [], [])
+
+        # set the constraintsn for the 1st subproblem
+        sp1_all_cons = []
+        sp1_cons1_idx = np.sort(
+            (self.__ind_set_lt + self.__ind_set_lte + self.__ind_set_eq)
+        )
+
+        if len(sp1_cons1_idx) > 0:
+            sp1_cons1_f = lambda _, fs: np.where(  # noqa
+                np.all(
+                    fs[:, sp1_cons1_idx] <= self.current_point[sp1_cons1_idx],
+                    axis=1,
+                ),
+                np.ones(len(fs)),
+                -np.ones(len(fs)),
+            )
+            sp1_cons1 = ScalarConstraint(
+                "sp1_cons1",
+                self.pareto_front.shape[1],
+                self.objective_vectors.shape[1],
+                sp1_cons1_f,
+            )
+            sp1_all_cons.append(sp1_cons1)
+
+        sp1_cons2_idx = self.__ind_set_gte
+        if len(sp1_cons2_idx) > 0:
+            sp1_cons2_f = lambda _, fs: np.where(  # noqa
+                np.all(fs[:, sp1_cons2_idx] <= self.__upper_bounds, axis=1),
+                np.ones(len(fs)),
+                -np.ones(len(fs)),
+            )
+            sp1_cons2 = ScalarConstraint(
+                "sp1_cons2",
+                self.pareto_front.shape[1],
+                self.objective_vectors.shape[1],
+                sp1_cons2_f,
+            )
+            sp1_all_cons.append(sp1_cons2)
+
+        self.__sprob_1.constraints = sp1_all_cons
+        print(self.__sprob_1.evaluate_constraint_values())
+
+        # solve the subproblem
+        self.__solver_1.asf.lt_inds = self.__ind_set_lt
+        self.__solver_1.asf.lte_inds = self.__ind_set_lte
+
+        sp1_reference = np.zeros(self.objective_vectors.shape[1])
+        sp1_reference[self.__ind_set_lte] = self.__aspiration_levels
+
+        res1 = self.__solver_1.solve(sp1_reference)
+        solutions.append(res1)
+
+        # subproblem 2
+        # subproblem 3
+        # subproblem 4
+
+        return np.array(solutions)
 
     def interact(self, classifications: List[Tuple[str, Optional[float]]]):
         self.classifications = classifications
+        self._sort_classsifications()
         pass

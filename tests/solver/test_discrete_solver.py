@@ -66,7 +66,6 @@ def test_asf(simple_data_problem):
     assert np.all(np.isclose(res2[1], [0, 3.861994]))
 
 
-@pytest.mark.snipe
 def test_asf_with_cons(simple_data_problem):
     solver = ASFScalarSolver(simple_data_problem, DiscreteMinimizer())
 

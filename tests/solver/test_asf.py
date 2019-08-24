@@ -103,13 +103,12 @@ def test_reference_point_call():
 
 
 @pytest.mark.snipe
-def test_maxoftwo(simple_data):
-    nadir = np.array([50, 20])
-    ideal = np.array([-20, -15])
-    reference = np.array([5, 2])
-    rho = 0.2
-    asf = MaxOfTwoASF(nadir, ideal, [0, 1], [], rho=rho)
-    xs, fs = simple_data
+def test_maxoftwo(four_dimenional_data_with_extremas):
+    xs, fs, nadir, ideal = four_dimenional_data_with_extremas
+    reference = np.array([5.2, 0.5, 8.5, 2.3])
+    asf = MaxOfTwoASF(nadir, ideal, [2, 3], [1])
 
     res = asf(fs, reference)
-    print(res)
+    assert np.all(
+        np.isclose(res, [1.07353, 0.32653076, 0.93877678, 0.91176686])
+    )

@@ -7,7 +7,7 @@ import logging
 import logging.config
 from abc import abstractmethod
 from os import path
-from typing import List
+from typing import List, Union
 
 
 import numpy as np
@@ -35,7 +35,7 @@ class ASFBase(abc.ABC):
     @abstractmethod
     def __call__(
         self, objective_vector: np.ndarray, reference_point: np.ndarray
-    ) -> float:
+    ) -> Union[float, np.ndarray]:
         """Guarantees that every class deriving from this should be usable like
         a function.
 
@@ -86,7 +86,7 @@ class SimpleASF(ASFBase):
 
     def __call__(
         self, objective_vector: np.ndarray, reference_point: np.ndarray
-    ) -> float:
+    ) -> Union[float, np.ndarray]:
         """Evaluate the simple order-representing ASF.
 
         Args:
@@ -183,7 +183,7 @@ class ReferencePointASF(ASFBase):
 
     def __call__(
         self, objective_vector: np.ndarray, reference_point: np.ndarray
-    ) -> float:
+    ) -> Union[float, np.ndarray]:
         """The actual implementation of the ASF.
 
         Arguments:
@@ -225,12 +225,14 @@ class MaxOfTwoASF(ASFBase):
         lt_inds: List[int],
         lte_inds: List[int],
         rho: float = 1e-6,
+        rho_sum: float = 1e-6,
     ):
         self.__nadir = nadir
         self.__ideal = ideal
         self.__lt_inds = lt_inds
         self.__lte_inds = lte_inds
         self.__rho = rho
+        self.__rho_sum = rho_sum
 
     @property
     def nadir(self) -> np.ndarray:
@@ -272,15 +274,46 @@ class MaxOfTwoASF(ASFBase):
     def rho(self, val: float):
         self.__rho = val
 
+    @property
+    def rho_sum(self) -> float:
+        return self.__rho_sum
+
+    @rho_sum.setter
+    def rho_sum(self, val: float):
+        self.__rho_sum = val
+
     def __call__(
         self, objective_vector: np.ndarray, reference_point: np.ndarray
-    ) -> float:
-        f = objective_vector
-        z = reference_point
+    ) -> Union[float, np.ndarray]:
+        """Compute the value for the ASF using the objective vectors and
+        reference point given.
+
+        Parameters:
+            objective_vector(np.ndarray): The objective vector(s)
+            reference_point(np.ndarray): The reference point
+
+        Returns:
+            Union[float, np.ndarray]: The asf value(s). Either a float for if a
+            single objective vector was given, or an array if multiple
+            objective vectors were given.
+
+        """
+        # assure this function works with single objective vectors
+        if objective_vector.ndim == 1:
+            f = objective_vector.reshape((1, -1))
+        else:
+            f = objective_vector
+
         ii = self.lt_inds
         jj = self.lte_inds
+        z = reference_point
+        nad = self.nadir
+        ide = self.ideal
+        uto = self.ideal - self.rho
 
-        lt_term = (f[:, ii] - self.ideal[ii]) / (
-            self.nadir[ii] - (self.ideal[ii] + self.rho)
-        )
-        return lt_term
+        lt_term = (f[:, ii] - ide[ii]) / (nad[ii] - uto[ii])
+        lte_term = (f[:, jj] - z[jj]) / (nad[jj] - uto[jj])
+        max_term = np.max(np.hstack((lt_term, lte_term)), axis=1)
+        sum_term = self.rho_sum * np.sum(f / (nad - uto), axis=1)
+
+        return max_term + sum_term

@@ -183,3 +183,33 @@ def simple_data():
 def simple_data_problem(simple_data):
     xs, fs = simple_data
     return ScalarDataProblem(xs, fs)
+
+
+@pytest.fixture
+def four_dimenional_data_with_extremas():
+    """Four dimensional data, both in the objective and decision space. Also
+    returns nadir and ideal points.
+
+    """
+    xs = np.array(
+        [
+            [5.2, 3.3, 9.2, -3.1],
+            [-9.1, 6.5, -3.3, -1.1],
+            [-1.2, -2.1, 1.2, 2.1],
+            [9.9, -9.9, 0.4, 0.1],
+        ]
+    )
+
+    fs = np.array(
+        [
+            [-1.5, -8.8, 8.5, 1.2],
+            [0.2, -9.9, 2.1, 3.4],
+            [1.5, 1.2, 1.2, 9.4],
+            [6.4, 8.5, 7.4, 0.2],
+        ]
+    )
+
+    nadir = np.array([7, 10, 8, 10])
+    ideal = np.array([-1.5, -9.9, 1.2, 0.2])
+
+    return xs, fs, nadir, ideal

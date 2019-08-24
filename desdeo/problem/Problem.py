@@ -436,6 +436,7 @@ class ScalarDataProblem(ProblemBase):
         constraint_values = np.zeros(
             (len(self.objectives), len(self.constraints))
         )
+
         for ind, con in enumerate(self.constraints):
             constraint_values[:, ind] = con.evaluate(
                 self.variables, self.objectives
