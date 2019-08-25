@@ -24,7 +24,12 @@ from desdeo.problem.Constraint import ScalarConstraint
 
 from desdeo.solver.ScalarSolver import ASFScalarSolver
 from desdeo.solver.NumericalMethods import DiscreteMinimizer
-from desdeo.solver.ASF import MaxOfTwoASF
+from desdeo.solver.ASF import (
+    MaxOfTwoASF,
+    PointMethodASF,
+    StomASF,
+    AugmentedGuessASF,
+)
 
 
 from desdeo.utils.frozen import frozen
@@ -318,6 +323,23 @@ class SNimbus(InteractiveMethodBase):
         self.__aspiration_levels = np.array(aspiration_levels)
         self.__upper_bounds = np.array(upper_bounds)
 
+    def _create_reference_point(self) -> np.ndarray:
+        """Create a reference point indicating the DM's preferences using the
+        classifications given by the DM.
+
+        Returns:
+            np.ndarray: The reference point.
+
+        """
+        ref_point = np.zeros(self.objective_vectors.shape[1])
+        ref_point[self.__ind_set_lt] = self.ideal[self.__ind_set_lt]
+        ref_point[self.__ind_set_lte] = self.__aspiration_levels
+        ref_point[self.__ind_set_eq] = self.current_point[self.__ind_set_eq]
+        ref_point[self.__ind_set_gte] = self.__upper_bounds
+        ref_point[self.__ind_set_free] = self.nadir[self.__ind_set_free]
+
+        return ref_point
+
     def initialize(
         self,
         n_solutions: int,
@@ -387,6 +409,7 @@ class SNimbus(InteractiveMethodBase):
             return self.current_point
 
         solutions: List[np.ndarray] = []
+        z_bar = self._create_reference_point()
 
         # subproblem 1
         if self.__sprob_1 is None:
@@ -402,7 +425,7 @@ class SNimbus(InteractiveMethodBase):
             )
             self.__solver_1.asf = MaxOfTwoASF(self.nadir, self.ideal, [], [])
 
-        # set the constraintsn for the 1st subproblem
+        # set the constraints for the 1st subproblem
         sp1_all_cons = []
         sp1_cons1_idx = np.sort(
             (self.__ind_set_lt + self.__ind_set_lte + self.__ind_set_eq)
@@ -441,7 +464,6 @@ class SNimbus(InteractiveMethodBase):
             sp1_all_cons.append(sp1_cons2)
 
         self.__sprob_1.constraints = sp1_all_cons
-        print(self.__sprob_1.evaluate_constraint_values())
 
         # solve the subproblem
         self.__solver_1.asf.lt_inds = self.__ind_set_lt
@@ -454,10 +476,65 @@ class SNimbus(InteractiveMethodBase):
         solutions.append(res1)
 
         # subproblem 2
-        # subproblem 3
-        # subproblem 4
+        if self.__sprob_2 is None:
+            # create the subproblem and solver
+            self.__sprob_2 = ScalarDataProblem(
+                self.pareto_front, self.objective_vectors
+            )
+            self.__sprob_2.nadir = self.nadir
+            self.__sprob_2.ideal = self.ideal
 
-        return np.array(solutions)
+            self.__solver_2 = ASFScalarSolver(
+                self.__sprob_2, DiscreteMinimizer()
+            )
+            self.__solver_2.asf = StomASF(self.ideal)
+
+        res2 = self.__solver_2.solve(z_bar)
+        solutions.append(res2)
+
+        # subproblem 3
+        if self.__sprob_3 is None:
+            # create the subproblem and solver
+            self.__sprob_3 = ScalarDataProblem(
+                self.pareto_front, self.objective_vectors
+            )
+            self.__sprob_3.nadir = self.nadir
+            self.__sprob_3.ideal = self.ideal
+
+            self.__solver_3 = ASFScalarSolver(
+                self.__sprob_3, DiscreteMinimizer()
+            )
+            self.__solver_3.asf = PointMethodASF(self.nadir, self.ideal)
+
+        res3 = self.__solver_3.solve(z_bar)
+        solutions.append(res3)
+
+        # subproblem 4
+        if self.__sprob_4 is None:
+            # create the subproblem and solver
+            self.__sprob_4 = ScalarDataProblem(
+                self.pareto_front, self.objective_vectors
+            )
+            self.__sprob_4.nadir = self.nadir
+            self.__sprob_4.ideal = self.ideal
+
+            self.__solver_4 = ASFScalarSolver(
+                self.__sprob_4, DiscreteMinimizer()
+            )
+            self.__solver_4.asf = AugmentedGuessASF(
+                self.nadir, self.__ind_set_free
+            )
+        else:
+            # update the indices to be excluded in the existing solver's asf
+            self.__solver_4.asf.indx_to_exclude = self.__ind_set_free
+
+        res4 = self.__solver_4.solve(z_bar)
+        solutions.append(res4)
+
+        return (
+            np.array([x[0] for x in solutions]),
+            np.array([x[1] for x in solutions]),
+        )
 
     def interact(self, classifications: List[Tuple[str, Optional[float]]]):
         self.classifications = classifications

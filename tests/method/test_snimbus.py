@@ -127,12 +127,35 @@ def test_sort_classificaitons(sphere_nimbus):
     assert method._SNimbus__upper_bounds[0] == 5.0
 
 
+def test_create_reference_point(simple_nimbus):
+    method = simple_nimbus
+    method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
+
+    method.iterate()
+
+    method.interact([(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)])
+    res1 = method._create_reference_point()
+    assert res1[0] == 2.0
+    assert res1[1] == method.nadir[1]
+    assert res1[2] == 5.0
+    assert res1[3] == method.nadir[3]
+
+    method.interact([("<", 0), ("=", 0), (">=", 14), (">=", 15)])
+    res2 = method._create_reference_point()
+    assert res2[0] == method.ideal[0]
+    assert res2[1] == method.current_point[1]
+    assert res2[2] == 14.0
+    assert res2[3] == 15.0
+
+
 @pytest.mark.snipe
 def test_iterate(simple_nimbus):
     method = simple_nimbus
     method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
 
     method.iterate()
-    method.interact([(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)])
+    # method.interact([(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)])
+    # method.interact([("<", 0), ("=", 0), (">=", 14), (">=", 15)])
+    method.interact([("=", 0), ("=", 0), ("<", 0), ("0", 0)])
     res = method.iterate()
     print(res)

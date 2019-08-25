@@ -519,6 +519,8 @@ class AugmentedGuessASF(ASFBase):
             (f[:, ex_mask] - nad[ex_mask]) / (nad[ex_mask] - z[ex_mask]),
             axis=1,
         )
-        sum_term = np.sum((f) / (nad - z), axis=1)
+        sum_term = np.sum(
+            (f[:, ex_mask]) / (nad[ex_mask] - z[ex_mask]), axis=1
+        )
 
         return max_term + sum_term
