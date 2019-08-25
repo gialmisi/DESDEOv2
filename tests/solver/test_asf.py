@@ -7,6 +7,9 @@ from desdeo.solver.ASF import (
     ReferencePointASF,
     SimpleASF,
     MaxOfTwoASF,
+    StomASF,
+    PointMethodASF,
+    AugmentedGuessASF,
 )
 
 
@@ -102,9 +105,8 @@ def test_reference_point_call():
     assert res == approx(expected)
 
 
-@pytest.mark.snipe
 def test_maxoftwo(four_dimenional_data_with_extremas):
-    xs, fs, nadir, ideal = four_dimenional_data_with_extremas
+    _, fs, nadir, ideal = four_dimenional_data_with_extremas
     reference = np.array([5.2, 0.5, 8.5, 2.3])
     asf = MaxOfTwoASF(nadir, ideal, [2, 3], [1])
 
@@ -112,3 +114,51 @@ def test_maxoftwo(four_dimenional_data_with_extremas):
     assert np.all(
         np.isclose(res, [1.07353, 0.32653076, 0.93877678, 0.91176686])
     )
+
+    res_single = asf(fs[1], reference)
+    assert np.isclose(res_single, 0.32653076)
+
+
+def test_stom(four_dimenional_data_with_extremas):
+    _, fs, _, ideal = four_dimenional_data_with_extremas
+    reference = np.array([5.2, 0.5, 8.5, 2.3])
+    asf = StomASF(ideal)
+
+    res = asf(fs, reference)
+    assert np.all(
+        np.isclose(res, [1.00000067, 1.52381026, 4.38095575, 1.76923358])
+    )
+
+    res_single = asf(fs[3], reference)
+    assert np.isclose(res_single, 1.76923358)
+
+
+def test_point_method(four_dimenional_data_with_extremas):
+    _, fs, nadir, ideal = four_dimenional_data_with_extremas
+    reference = np.array([5.2, 0.5, 8.5, 2.3])
+    asf = PointMethodASF(nadir, ideal)
+
+    res = asf(fs, reference)
+    assert np.all(
+        np.isclose(
+            res,
+            [7.53767183e-07, 1.12245068e-01, 7.24491094e-01, 4.02012319e-01],
+        )
+    )
+
+    res_single = asf(fs[2], reference)
+    assert np.isclose(res_single, 7.24491094e-01)
+
+
+def test_augmented_guess(four_dimenional_data_with_extremas):
+    _, fs, nadir, _ = four_dimenional_data_with_extremas
+    reference = np.array([5.2, 0.5, 8.5, 2.3])
+    asf = AugmentedGuessASF(nadir, [1, 3])
+
+    res = asf(fs, reference)
+    assert np.all(
+        np.isclose(res, [-19.60380497, 7.11056429, 13.38042834, -9.12373358])
+    )
+
+    res_single = asf(fs[0], reference)
+    assert np.isclose(res_single, -19.60380497)

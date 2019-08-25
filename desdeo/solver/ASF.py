@@ -209,10 +209,10 @@ class ReferencePointASF(ASFBase):
 
 
 class MaxOfTwoASF(ASFBase):
-    """Implements the ASF as defined in eq. 3.1 `Miettinen 2016`_
+    """Implements the ASF as defined in eq. 3.1 `Miettinen 2006`_
 
     .. _Miettinen 2006:
-        Mietttinen, K. & Mäkelä, Marko M.
+        Miettinen, K. & Mäkelä, Marko M.
         Synchronous approach in interactive multiobjective optimization
         European Journal of Operational Research, 2006, 170, 909-922
 
@@ -315,5 +315,210 @@ class MaxOfTwoASF(ASFBase):
         lte_term = (f[:, jj] - z[jj]) / (nad[jj] - uto[jj])
         max_term = np.max(np.hstack((lt_term, lte_term)), axis=1)
         sum_term = self.rho_sum * np.sum(f / (nad - uto), axis=1)
+
+        return max_term + sum_term
+
+
+class StomASF(ASFBase):
+    """Implementation of the satisficing trade-off method (STOM) as presented
+    in `Miettinen 2006` equation (3.2)
+
+    .. _Miettinen 2006:
+        Miettinen, K. & Mäkelä, Marko M.
+        Synchronous approach in interactive multiobjective optimization
+        European Journal of Operational Research, 2006, 170, 909-922
+
+    """
+
+    def __init__(
+        self, ideal: np.ndarray, rho: float = 1e-6, rho_sum: float = 1e-6
+    ):
+        self.__ideal = ideal
+        self.__rho = rho
+        self.__rho_sum = rho_sum
+
+    @property
+    def ideal(self) -> np.ndarray:
+        return self.__ideal
+
+    @ideal.setter
+    def ideal(self, val: np.ndarray):
+        self.__ideal = val
+
+    @property
+    def rho(self) -> float:
+        return self.__rho
+
+    @rho.setter
+    def rho(self, val: float):
+        self.__rho = val
+
+    @property
+    def rho_sum(self) -> float:
+        return self.__rho_sum
+
+    @rho_sum.setter
+    def rho_sum(self, val: float):
+        self.__rho_sum = val
+
+    def __call__(
+        self, objective_vectors: np.ndarray, reference_point: np.ndarray
+    ):
+        # assure this function works with single objective vectors
+        if objective_vectors.ndim == 1:
+            f = objective_vectors.reshape((1, -1))
+        else:
+            f = objective_vectors
+
+        z = reference_point
+        uto = self.ideal - self.rho
+
+        max_term = np.max((f - uto) / (z - uto), axis=1)
+        sum_term = self.rho_sum * np.sum((f) / (z - uto), axis=1)
+
+        return max_term + sum_term
+
+
+class PointMethodASF(ASFBase):
+    """Implementation of the reference point based ASF as presented
+    in `Miettinen 2006` equation (3.3)
+
+    .. _Miettinen 2006:
+        Miettinen, K. & Mäkelä, Marko M.
+        Synchronous approach in interactive multiobjective optimization
+        European Journal of Operational Research, 2006, 170, 909-922
+
+    Note:
+        Lack of better name...
+
+    """
+
+    def __init__(
+        self,
+        nadir: np.ndarray,
+        ideal: np.ndarray,
+        rho: float = 1e-6,
+        rho_sum: float = 1e-6,
+    ):
+        self.__nadir = nadir
+        self.__ideal = ideal
+        self.__rho = rho
+        self.__rho_sum = rho
+
+    @property
+    def nadir(self) -> np.ndarray:
+        return self.__nadir
+
+    @nadir.setter
+    def nadir(self, val: np.ndarray):
+        self.__nadir = val
+
+    @property
+    def ideal(self) -> np.ndarray:
+        return self.__ideal
+
+    @ideal.setter
+    def ideal(self, val: np.ndarray):
+        self.__ideal = val
+
+    @property
+    def rho(self) -> float:
+        return self.__rho
+
+    @rho.setter
+    def rho(self, val: float):
+        self.__rho = val
+
+    @property
+    def rho_sum(self) -> float:
+        return self.__rho_sum
+
+    @rho_sum.setter
+    def rho_sum(self, val: float):
+        self.__rho_sum = val
+
+    def __call__(
+        self, objective_vectors: np.ndarray, reference_point: np.ndarray
+    ):
+        # assure this function works with single objective vectors
+        if objective_vectors.ndim == 1:
+            f = objective_vectors.reshape((1, -1))
+        else:
+            f = objective_vectors
+
+        z = reference_point
+        nad = self.nadir
+        uto = self.ideal - self.rho
+
+        max_term = np.max((f - z) / (nad - uto), axis=1)
+        sum_term = self.rho_sum * np.sum((f) / (nad - uto), axis=1)
+
+        return max_term + sum_term
+
+
+class AugmentedGuessASF(ASFBase):
+    """Implementation of the augmented GUESS related ASF as presented in
+    `Miettinen 2006` equation (3.4)
+
+    .. _Miettinen 2006:
+        Miettinen, K. & Mäkelä, Marko M.
+        Synchronous approach in interactive multiobjective optimization
+        European Journal of Operational Research, 2006, 170, 909-922
+
+    """
+
+    def __init__(
+        self,
+        nadir: np.ndarray,
+        indx_to_exclude: List[int],
+        rho_sum: float = 1e-6,
+    ):
+        self.__nadir = nadir
+        self.__indx_to_exclude = indx_to_exclude
+        self.__rho_sum = rho_sum
+
+    @property
+    def nadir(self) -> np.ndarray:
+        return self.__nadir
+
+    @nadir.setter
+    def nadir(self, val: np.ndarray):
+        self.__nadir = val
+
+    @property
+    def indx_to_exclude(self) -> List[int]:
+        return self.__indx_to_exclude
+
+    @indx_to_exclude.setter
+    def indx_to_exclude(self, val: List[int]):
+        self.__indx_to_exclude = val
+
+    @property
+    def rho_sum(self) -> float:
+        return self.__rho_sum
+
+    @rho_sum.setter
+    def rho_sum(self, val: float):
+        self.__rho_sum = val
+
+    def __call__(
+        self, objective_vectors: np.ndarray, reference_point: np.ndarray
+    ):
+        # assure this function works with single objective vectors
+        if objective_vectors.ndim == 1:
+            f = objective_vectors.reshape((1, -1))
+        else:
+            f = objective_vectors
+
+        z = reference_point
+        nad = self.nadir
+        ex_mask = np.full((f.shape[1]), True, dtype=bool)
+        ex_mask[self.indx_to_exclude] = False
+
+        max_term = np.max(
+            (f[:, ex_mask] - nad[ex_mask]) / (nad[ex_mask] - z[ex_mask]),
+            axis=1,
+        )
+        sum_term = np.sum((f) / (nad - z), axis=1)
 
         return max_term + sum_term
