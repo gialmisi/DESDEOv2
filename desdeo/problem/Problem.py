@@ -535,4 +535,4 @@ class ScalarDataProblem(ProblemBase):
             logger.error(msg)
             raise NotImplementedError(msg)
 
-        return (self.objectives[idx], None)
+        return (self.objectives[idx],)
