@@ -519,7 +519,7 @@ class AugmentedGuessASF(ASFBase):
             (f[:, ex_mask] - nad[ex_mask]) / (nad[ex_mask] - z[ex_mask]),
             axis=1,
         )
-        sum_term = np.sum(
+        sum_term = self.rho_sum * np.sum(
             (f[:, ex_mask]) / (nad[ex_mask] - z[ex_mask]), axis=1
         )
 
