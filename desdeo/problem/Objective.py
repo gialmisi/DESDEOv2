@@ -56,6 +56,9 @@ class ScalarObjective(ObjectiveBase):
         lower_bound (float): The lower bound of the objective.
         upper_bound (float): The upper bound of the objective.
 
+    Raises:
+        ObjectiveError: When ill formed bounds are given.
+
     """
 
     def __init__(
@@ -70,7 +73,7 @@ class ScalarObjective(ObjectiveBase):
             msg = (
                 "Lower bound {} should be less than the upper bound " "{}."
             ).format(lower_bound, upper_bound)
-            logger.debug(msg)
+            logger.error(msg)
             raise ObjectiveError(msg)
 
         self.__name: str = name
@@ -112,6 +115,9 @@ class ScalarObjective(ObjectiveBase):
         Returns:
             float: The evaluated value of the objective function.
 
+        Raises:
+            ObjectiveError: When a bad argument is supplies to the evaluator.
+
         """
         try:
             result = self.__evaluator(decision_vector)
@@ -119,10 +125,10 @@ class ScalarObjective(ObjectiveBase):
             msg = "Bad argument {} supplied to the evaluator: {}".format(
                 str(decision_vector), str(e)
             )
-            logger.debug(msg)
+            logger.error(msg)
             raise ObjectiveError(msg)
 
         # Store the value of the objective
-        self.__value = result
+        self.value = result
 
         return result

@@ -1,4 +1,4 @@
-"""Constaints classes representing variables to be used with the Problem
+"""Contains classes representing variables to be used with the Problem
 classes. This class may be used for demonstrative problems. It is not a
 necessary class to be used.
 
@@ -19,8 +19,8 @@ logger = logging.getLogger(__file__)
 
 
 class VariableError(Exception):
-    """Raised when an error in encountered during the handling of the
-    Variable class.
+    """Raised when an error is encountered during the handling of the
+    Variable objects.
 
     """
 
@@ -35,7 +35,7 @@ class Variable:
         initial_value (float): The initial value of the variable.
         lower_bound (float, optional): Lower bound of the variable. Defaults
             to negative infinity.
-        upper_bound (float, optional): Upper of the variable. Defaults
+        upper_bound (float, optional): Upper bound of the variable. Defaults
             to positive infinity.
 
     Attributes:
@@ -44,6 +44,9 @@ class Variable:
         lower_bound (float): Lower bound of the variable.
         upper_bound (float): Upper bound of the variable.
         current_value (float): The current value the variable holds.
+
+    Raises:
+        VariableError: Bounds are incorrect.
 
     """
 
@@ -65,7 +68,7 @@ class Variable:
             msg = (
                 "Lower bound {} should be less than the upper bound " "{}."
             ).format(lower_bound, upper_bound)
-            logger.debug(msg)
+            logger.error(msg)
             raise VariableError(msg)
 
         # Check that the initial value is between the bounds
@@ -76,7 +79,7 @@ class Variable:
                     initial_value, lower_bound, upper_bound
                 )
             )
-            logger.debug(msg)
+            logger.error(msg)
             raise VariableError(msg)
 
         self.__lower_bound = lower_bound

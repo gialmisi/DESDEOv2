@@ -30,8 +30,7 @@ class ProblemError(Exception):
 
 class ProblemBase(ABC):
     """The base class from which every other class representing a problem should
-    derive.  This class presents common interface for message broking in for
-    the manager.
+    derive.
 
     """
 
@@ -124,6 +123,9 @@ class ScalarMOProblem(ProblemBase):
         constraints (List[ScalarConstraint]): A list conatining the constraints
         of the problem.
 
+    Raises:
+        ProblemError: Ill formed nadir and/or ideal vectors are supplied.
+
     """
 
     def __init__(
@@ -139,8 +141,8 @@ class ScalarMOProblem(ProblemBase):
         self.__variables: List[Variable] = variables
         self.__constraints: List[ScalarConstraint] = constraints
 
-        self.n_of_objectives: int = len(self.objectives)
-        self.n_of_variables: int = len(self.variables)
+        self.__n_of_objectives: int = len(self.objectives)
+        self.__n_of_variables: int = len(self.variables)
 
         if self.constraints is not None:
             self.__n_of_constraints: int = len(self.constraints)
@@ -155,7 +157,7 @@ class ScalarMOProblem(ProblemBase):
                     "number of objectives: Length nadir {}, number of "
                     "objectives {}."
                 ).format(len(nadir), self.n_of_objectives)
-                logger.debug(msg)
+                logger.error(msg)
                 raise ProblemError(msg)
 
         # Ideal vector must be the same size as the number of objectives
@@ -166,7 +168,7 @@ class ScalarMOProblem(ProblemBase):
                     "number of objectives: Length ideal {}, number of "
                     "objectives {}."
                 ).format(len(ideal), self.n_of_objectives)
-                logger.debug(msg)
+                logger.error(msg)
                 raise ProblemError(msg)
 
         # Nadir and ideal vectors must match in size
@@ -176,11 +178,11 @@ class ScalarMOProblem(ProblemBase):
                     "The length of the nadir and ideal point don't match:"
                     " length of nadir {}, length of ideal {}."
                 ).format(len(nadir), len(ideal))
-                logger.debug(msg)
+                logger.error(msg)
                 raise ProblemError(msg)
 
-        self.nadir = nadir
-        self.ideal = ideal
+        self.__nadir = nadir
+        self.__ideal = ideal
 
     @property
     def n_of_constraints(self) -> int:
@@ -214,6 +216,46 @@ class ScalarMOProblem(ProblemBase):
     def constraints(self, val: List[ScalarConstraint]):
         self.__constraints = val
 
+    @property
+    def n_of_constraints(self) -> int:
+        return self.__n_of_constraints
+
+    @n_of_constraints.setter
+    def n_of_constraints(self, val: int):
+        self.__n_of_constraints = val
+
+    @property
+    def n_of_objectives(self) -> int:
+        return self.__n_of_objectives
+
+    @n_of_objectives.setter
+    def n_of_objectives(self, val: int):
+        self.__n_of_objectives = val
+
+    @property
+    def n_of_variables(self) -> int:
+        return self.__n_of_variables
+
+    @n_of_variables.setter
+    def n_of_variables(self, val: int):
+        self.__n_of_variables = val
+
+    @property
+    def nadir(self) -> np.ndarray:
+        return self.__nadir
+
+    @nadir.setter
+    def nadir(self, val: np.ndarray):
+        self.__nadir = val
+
+    @property
+    def ideal(self) -> np.ndarray:
+        return self.__ideal
+
+    @ideal.setter
+    def ideal(self, val: np.ndarray):
+        self.__ideal = val
+
     def get_variable_bounds(self) -> Union[np.ndarray, None]:
         """Return the upper and lower bounds of each decision variable present
         in the problem as a 2D numpy array. The first column corresponds to the
@@ -231,7 +273,7 @@ class ScalarMOProblem(ProblemBase):
                 bounds[ind] = np.array(var.get_bounds())
             return bounds
         else:
-            logger.debug(
+            logger.info(
                 "Attempted to get variable bounds for a "
                 "ScalarMOProblem with no defined variables."
             )
@@ -291,6 +333,9 @@ class ScalarMOProblem(ProblemBase):
                 constraints (np.ndarray): The constraint values of the problem
                 corresponding each input vector.
 
+        Raises:
+            ProblemError: The decision_variables have wrong dimensions.
+
         """
         # Reshape decision_variables with single row to work with the code
         shape = np.shape(decision_variables)
@@ -305,15 +350,15 @@ class ScalarMOProblem(ProblemBase):
                 "of variables in the problem: Input vector length {}, "
                 "number of variables {}."
             ).format(n_cols, self.n_of_variables)
-            logger.debug(msg)
+            logger.error(msg)
             raise ProblemError(msg)
 
         objective_values: np.ndarray = np.ndarray(
             (n_rows, self.n_of_objectives), dtype=float
         )
-        if self.__n_of_constraints > 0:
+        if self.n_of_constraints > 0:
             constraint_values: np.ndarray = np.ndarray(
-                (n_rows, self.__n_of_constraints), dtype=float
+                (n_rows, self.n_of_constraints), dtype=float
             )
         else:
             constraint_values = None
@@ -342,7 +387,7 @@ class ScalarMOProblem(ProblemBase):
 
 class ScalarDataProblem(ProblemBase):
     """Defines a problem with pre-computed data representing a multiobjective
-    optimiation problem with scalar valued objective functions.
+    optimization problem with scalar valued objective functions.
 
     Parameters:
         variables(np.ndarray): A 2D vector of variables. Each row represents a
@@ -380,7 +425,7 @@ class ScalarDataProblem(ProblemBase):
                 "Check the variable dimensions. Is it a 2D array? "
                 "Encountered '{}'".format(str(e))
             )
-            logger.debug(msg)
+            logger.error(msg)
             raise ProblemError(msg)
 
         try:
@@ -390,11 +435,11 @@ class ScalarDataProblem(ProblemBase):
                 "Check the objective dimensions. Is it a 2D array? "
                 "Encountered '{}'".format(str(e))
             )
-            logger.debug(msg)
+            logger.error(msg)
             raise ProblemError(msg)
 
-        self.nadir = np.max(self.objectives, axis=0)
-        self.ideal = np.min(self.objectives, axis=0)
+        self.__nadir = np.max(self.objectives, axis=0)
+        self.__ideal = np.min(self.objectives, axis=0)
 
     @property
     def variables(self) -> np.ndarray:
@@ -413,6 +458,14 @@ class ScalarDataProblem(ProblemBase):
         self.__objectives = val
 
     @property
+    def epsilon(self) -> float:
+        return self.__epsilon
+
+    @epsilon.setter
+    def epsilon(self, val: float):
+        self.__epsilon = val
+
+    @property
     def constraints(self) -> List[ScalarConstraint]:
         return self.__constraints
 
@@ -420,11 +473,27 @@ class ScalarDataProblem(ProblemBase):
     def constraints(self, val: List[ScalarConstraint]):
         self.__constraints = val
 
+    @property
+    def nadir(self) -> np.ndarray:
+        return self.__nadir
+
+    @nadir.setter
+    def nadir(self, val: np.ndarray):
+        self.__nadir = val
+
+    @property
+    def ideal(self) -> np.ndarray:
+        return self.__ideal
+
+    @ideal.setter
+    def ideal(self, val: np.ndarray):
+        self.__ideal = val
+
     def get_variable_bounds(self):
         return np.stack(
             (
-                np.min(self.variables, axis=0) - self.__epsilon,
-                np.max(self.variables, axis=0) + self.__epsilon,
+                np.min(self.variables, axis=0) - self.epsilon,
+                np.max(self.variables, axis=0) + self.epsilon,
             ),
             axis=1,
         )
@@ -466,4 +535,4 @@ class ScalarDataProblem(ProblemBase):
             logger.error(msg)
             raise NotImplementedError(msg)
 
-        return (self.objectives[idx],)
+        return (self.objectives[idx], None)

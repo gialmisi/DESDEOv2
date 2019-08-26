@@ -1,4 +1,4 @@
-""" Here different kinds of constraint functions are defined.
+"""Here different kinds of constraint functions are defined.
 
 """
 
@@ -49,7 +49,7 @@ class ConstraintBase(ABC):
             violation (or how well the constraint holds, if the returned value
             of positive).
 
-        """
+d        """
         pass
 
 
@@ -134,7 +134,7 @@ class ScalarConstraint(ConstraintBase):
                 "Decision decision_vector {} is of wrong lenght: "
                 "Should be {}, but is {}"
             ).format(decision_vector, self.__n_decision_vars, decision_l)
-            logger.debug(msg)
+            logger.error(msg)
             raise ConstraintError(msg)
 
         objective_l = (
@@ -147,22 +147,23 @@ class ScalarConstraint(ConstraintBase):
                 "Objective decision_vector {} is of wrong lenght:"
                 " Should be {}, but is {}"
             ).format(objective_vector, self.__n_objective_funs, objective_l)
-            logger.debug(msg)
+            logger.error(msg)
             raise ConstraintError(msg)
         try:
             result = self.__evaluator(decision_vector, objective_vector)
         except (TypeError, IndexError) as e:
             msg = (
-                "Bad arguments {} and {} supllied to the evaluator:" " {}"
+                "Bad arguments {} and {} supplied to the evaluator:" " {}"
             ).format(str(decision_vector), objective_vector, str(e))
+            logger.error(msg)
             raise ConstraintError(msg)
 
         return result
 
 
-# A static variable indicating the supported operators for constructing a
-# constraint.
 supported_operators: List[str] = ["==", "<", ">"]
+"""List[str]: Shows the operators supportted in the
+constraint_function_factory."""
 
 
 def constraint_function_factory(
@@ -187,10 +188,13 @@ def constraint_function_factory(
        agreement with the constraint. The absolute value of the float is a
        direct indicator how the constraint is violated/agdreed with.
 
+    Raises:
+        ValueError: The supplied operator is not supported.
+
     """
     if operator not in supported_operators:
         msg = "The operator {} supplied is not supported.".format(operator)
-        logger.debug(msg)
+        logger.error(msg)
         raise ValueError(msg)
 
     if operator == "==":
@@ -223,5 +227,5 @@ def constraint_function_factory(
     else:
         # if for some reason a bad operator falls through
         msg = "Bad operator argument supplied: {}".format(operator)
-        logger.debug(msg)
+        logger.error(msg)
         raise ValueError(msg)
