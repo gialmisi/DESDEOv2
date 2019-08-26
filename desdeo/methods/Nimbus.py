@@ -638,7 +638,7 @@ class SNimbus(InteractiveMethodBase):
                         self.__sprob_4, DiscreteMinimizer()
                     )
                     self.__solver_4.asf = AugmentedGuessASF(
-                        self.nadir, self.__ind_set_free
+                        self.nadir, self.ideal, self.__ind_set_free
                     )
                 else:
                     # update the indices to be excluded in the existing solver's
