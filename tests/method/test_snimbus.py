@@ -84,23 +84,23 @@ def test_bad_classificaitons(sphere_nimbus):
 
     # wrong number of classificaiton
     with pytest.raises(InteractiveMethodError):
-        method.interact([("<", 0), ("=", 0)])
+        method.interact(classifications=[("<", 0), ("=", 0)])
 
     # wrong type of classification
     with pytest.raises(InteractiveMethodError):
-        method.interact([("<", 0), ("=", 0), ("==", 0)])
+        method.interact(classifications=[("<", 0), ("=", 0), ("==", 0)])
 
     # wrong type of paramter for <=
     with pytest.raises(InteractiveMethodError):
-        method.interact([("<=", 3), ("=", 0), ("=", 0)])
+        method.interact(classifications=[("<=", 3), ("=", 0), ("=", 0)])
 
     # wrong type of paramter for >=
     with pytest.raises(InteractiveMethodError):
-        method.interact([("<=", 1), ("=", 0), (">=", 2)])
+        method.interact(classifications=[("<=", 1), ("=", 0), (">=", 2)])
 
     # bad classificaton
     with pytest.raises(InteractiveMethodError):
-        method.interact([("<=", 1), ("<", 0), ("<=", 2)])
+        method.interact(classifications=[("<=", 1), ("<", 0), ("<=", 2)])
 
 
 def test_sort_classificaitons(sphere_nimbus):
@@ -133,7 +133,9 @@ def test_create_reference_point(simple_nimbus):
 
     method.iterate()
 
-    method.interact([(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)])
+    method.interact(
+        classifications=[(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)]
+    )
     method._sort_classsifications()
     res1 = method._create_reference_point()
     assert res1[0] == 2.0
@@ -141,7 +143,9 @@ def test_create_reference_point(simple_nimbus):
     assert res1[2] == 5.0
     assert res1[3] == method.nadir[3]
 
-    method.interact([("<", 0), ("=", 0), (">=", 14), (">=", 15)])
+    method.interact(
+        classifications=[("<", 0), ("=", 0), (">=", 14), (">=", 15)]
+    )
     method._sort_classsifications()
     res2 = method._create_reference_point()
     assert res2[0] == method.ideal[0]
@@ -155,24 +159,19 @@ def test_archive_points(simple_nimbus):
     method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
 
     assert method.archive == []
-    ps1 = [(
-        np.array([1, 2, 3]),
-        np.array([0.1, 0.2, 0.3])
-    )]
+    ps1 = [(np.array([1, 2, 3]), np.array([0.1, 0.2, 0.3]))]
 
     method.interact(save_points=ps1)
     for (a, b) in zip(method.archive, ps1):
         assert np.all(np.isclose(a, b))
 
     ps2 = [
-        (np.array([2, 1, 3]),
-         np.array([0.2, 0.1, 0.3])),
-        (np.array([-1, -2, -3]),
-         np.array([-0.1, -0.2, -0.3]))
+        (np.array([2, 1, 3]), np.array([0.2, 0.1, 0.3])),
+        (np.array([-1, -2, -3]), np.array([-0.1, -0.2, -0.3])),
     ]
 
     method.interact(save_points=ps2)
-    for (a, b) in zip(method.archive, ps1+ps2):
+    for (a, b) in zip(method.archive, ps1 + ps2):
         assert np.all(np.isclose(a, b))
 
     print(method.archive)
@@ -211,32 +210,83 @@ def test_create_intermediate_reference_points(simple_nimbus):
     res = method._create_intermediate_reference_points()
     assert len(res) == method.n_intermediate_solutions
 
-    assert np.all(np.isclose(res[0], f1 + [3/4, -3/4]))
-    assert np.all(np.isclose(res[1], f1 + [3/2, -3/2]))
-    assert np.all(np.isclose(res[2], f1 + [9/4, -9/4]))
+    assert np.all(np.isclose(res[0], f1 + [3 / 4, -3 / 4]))
+    assert np.all(np.isclose(res[1], f1 + [3 / 2, -3 / 2]))
+    assert np.all(np.isclose(res[2], f1 + [9 / 4, -9 / 4]))
 
 
-@pytest.mark.snipe
 def test_calculate_intermediate(simple_nimbus):
     method = simple_nimbus
     method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
     method.iterate()
-    method.interact([(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)])
+    method.interact(
+        classifications=[(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)]
+    )
     _, fs, _ = method.iterate()
-    method.interact(search_between_points=(fs[0], fs[1]),
-                    n_intermediate_solutions=5)
+    method.interact(
+        search_between_points=(fs[0], fs[1]), n_intermediate_solutions=5
+    )
     xs, fs, arch = method.iterate()
 
     assert len(fs) == len(xs)
     assert len(fs) == 5
 
 
+@pytest.mark.snipe
 def test_iterate(simple_nimbus):
     method = simple_nimbus
     method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
 
-    method.iterate()
-    # method.interact([(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)])
-    method.interact([("<", 0), ("=", 0), (">=", 14), (">=", 15)])
-    # method.interact([("=", 0), ("=", 0), ("<", 0), ("0", 0)])
-    res_x, res_f, archive = method.iterate()
+    res_fst = method.iterate()
+    assert np.all(np.isclose(res_fst, [-1.5, -8.8, 8.5, 1.2]))
+
+    method.interact(
+        classifications=[("<", 0), ("=", 0), (">=", 14), (">=", 15)]
+    )
+
+    res1_x, res1_f, archive1 = method.iterate()
+    assert len(res1_x) == len(res1_f)
+    assert len(res1_x) == 4
+    assert len(archive1) == 0
+
+    method.interact(
+        most_preferred_point=res1_f[2],
+        classifications=[("=", 0), ("<", 0), (">=", 14), ("0", 0)],
+        n_generated_solutions=2,
+        save_points=[(res1_x[1], res1_f[1])],
+    )
+
+    res2_x, res2_f, archive2 = method.iterate()
+    assert len(res2_x) == 2
+    assert len(res2_f) == 2
+    assert len(archive2) == 1
+    for (a, b) in zip(archive2, [(res1_x[1], res1_f[1])]):
+        assert np.all(np.isclose(a, b))
+
+    method.interact(
+        search_between_points=(res2_f[0], archive2[0][1]),
+        n_intermediate_solutions=6,
+    )
+
+    res3_x, res3_f, archive3 = method.iterate()
+
+    assert len(res3_x) == len(res3_f)
+    assert len(res3_x) == 6
+    assert len(archive3) == 1
+    for (a, b) in zip(archive2, [(res1_x[1], res1_f[1])]):
+        assert np.all(np.isclose(a, b))
+
+    method.interact(
+        classifications=[("=", 0), ("0", 0), ("<=", 0.1), ("<", 0)],
+        save_points=list(zip(res3_x, res3_f)),
+        most_preferred_point=res3_f[3],
+        n_generated_solutions=2,
+    )
+
+    res4_x, res4_f, archive4 = method.iterate()
+
+    assert len(res4_x) == len(res4_f)
+    assert len(res4_x) == 2
+    assert len(archive4) == len(archive3) + len(list(zip(res3_x, res3_f)))
+    for (a, b) in zip(archive4, archive3 + list(zip(res3_x, res3_f))):
+        assert np.all(np.isclose(a, b))

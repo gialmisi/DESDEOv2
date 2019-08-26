@@ -157,7 +157,7 @@ def test_augmented_guess(four_dimenional_data_with_extremas):
 
     res = asf(fs, reference)
     assert np.all(
-        np.isclose(res, [-1.00001783, 11.79999591, 13.59999843,  1.19998876])
+        np.isclose(res, [-1.00001783, 11.79999591, 13.59999843, 1.19998876])
     )
 
     res_single = asf(fs[0], reference)
