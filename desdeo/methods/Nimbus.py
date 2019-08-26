@@ -100,11 +100,17 @@ class SNimbus(InteractiveMethodBase):
         # starting objective vector
         self.__current_point: np.ndarray = None
         # solution archive
-        self.__archive: List[np.ndarray] = []
+        self.__archive: List[Tuple[np.ndarray, np.ndarray]] = []
         # number of point to be generated
         self.__n_points: int = 0
         # flag to represent if first iteration
-        self.__first_iteration = True
+        self.__first_iteration: bool = True
+        # flag to generate intermediate points
+        self.__generate_intermediate: bool = False
+        # points between intermediate solutions are explored
+        self.__search_between_points: Tuple[np.ndarray] = ()
+        # number of intermediate points to be generated
+        self.__n_intermediate_solutions: int = 0
         # subproblems
         self.__sprob_1: ScalarDataProblem = None
         self.__sprob_2: ScalarDataProblem = None
@@ -216,11 +222,11 @@ class SNimbus(InteractiveMethodBase):
         self.__cind = val
 
     @property
-    def archive(self) -> List[np.ndarray]:
+    def archive(self) -> List[Tuple[np.ndarray, np.ndarray]]:
         return self.__archive
 
     @archive.setter
-    def archive(self, val: List[np.ndarray]):
+    def archive(self, val: List[Tuple[np.ndarray, np.ndarray]]):
         self.__archive = val
 
     @property
@@ -285,6 +291,45 @@ class SNimbus(InteractiveMethodBase):
     def first_iteration(self, val: bool):
         self.__first_iteration = val
 
+    @property
+    def generate_intermediate(self) -> bool:
+        return self.__generate_intermediate
+
+    @generate_intermediate.setter
+    def generate_intermediate(self, val: bool):
+        self.__generate_intermediate = val
+
+    @property
+    def search_between_points(self) -> Tuple[np.ndarray]:
+        return self.__search_between_points
+
+    @search_between_points.setter
+    def search_between_points(self, val: Tuple[np.ndarray]):
+        if len(val) != 2:
+            msg = (
+                "To generate intermediate points, two points must be "
+                "specified. Number of given points were {}"
+            ).format(len(val))
+            logger.error(msg)
+            raise InteractiveMethodError(msg)
+        self.__search_between_points = val
+
+    @property
+    def n_intermediate_solutions(self) -> int:
+        return self.__n_intermediate_solutions
+
+    @n_intermediate_solutions.setter
+    def n_intermediate_solutions(self, val: int):
+        if val < 1:
+            msg = (
+                "Number of intermediate points to be generated must be "
+                "positive definitive. Given number of points {}."
+            ).format(val)
+            logger.error(msg)
+            raise InteractiveMethodError(msg)
+
+        self.__n_intermediate_solutions = val
+
     def _sort_classsifications(self):
         """Sort the objective indices into their corresponding sets and save
         the aspiration and upper bounds set in the classifications.
@@ -339,6 +384,23 @@ class SNimbus(InteractiveMethodBase):
         ref_point[self.__ind_set_free] = self.nadir[self.__ind_set_free]
 
         return ref_point
+
+    def _create_intermediate_reference_points(self) -> np.ndarray:
+        f1 = self.search_between_points[0]
+        f2 = self.search_between_points[1]
+        points = []
+
+        # The unnormalized vector pointing from f1 to f2
+        normal = f2 - f1
+
+        # fraction of the normal
+        step_vec = normal / (self.n_intermediate_solutions + 1)
+        points.append(f1 + step_vec)
+
+        for i in range(1, self.n_intermediate_solutions):
+            points.append(points[i-1] + step_vec)
+
+        return np.array(points)
 
     def initialize(
         self,
@@ -408,7 +470,10 @@ class SNimbus(InteractiveMethodBase):
             self.first_iteration = False
             return self.current_point
 
-        solutions: List[np.ndarray] = []
+        self._sort_classsifications()
+
+        res_all_xs: List[np.ndarray] = []
+        res_all_fs: List[np.ndarray] = []
         z_bar = self._create_reference_point()
 
         # subproblem 1
@@ -473,7 +538,8 @@ class SNimbus(InteractiveMethodBase):
         sp1_reference[self.__ind_set_lte] = self.__aspiration_levels
 
         res1 = self.__solver_1.solve(sp1_reference)
-        solutions.append(res1)
+        res_all_xs.append(res1[0])
+        res_all_fs.append(res1[1][0])
 
         # subproblem 2
         if self.__sprob_2 is None:
@@ -490,7 +556,8 @@ class SNimbus(InteractiveMethodBase):
             self.__solver_2.asf = StomASF(self.ideal)
 
         res2 = self.__solver_2.solve(z_bar)
-        solutions.append(res2)
+        res_all_xs.append(res2[0])
+        res_all_fs.append(res2[1][0])
 
         # subproblem 3
         if self.__sprob_3 is None:
@@ -507,7 +574,8 @@ class SNimbus(InteractiveMethodBase):
             self.__solver_3.asf = PointMethodASF(self.nadir, self.ideal)
 
         res3 = self.__solver_3.solve(z_bar)
-        solutions.append(res3)
+        res_all_xs.append(res3[0])
+        res_all_fs.append(res3[1][0])
 
         # subproblem 4
         if self.__sprob_4 is None:
@@ -529,14 +597,33 @@ class SNimbus(InteractiveMethodBase):
             self.__solver_4.asf.indx_to_exclude = self.__ind_set_free
 
         res4 = self.__solver_4.solve(z_bar)
-        solutions.append(res4)
+        res_all_xs.append(res4[0])
+        res_all_fs.append(res4[1][0])
 
-        return (
-            np.array([x[0] for x in solutions]),
-            np.array([x[1] for x in solutions]),
-        )
+        return (np.array(res_all_xs), np.array(res_all_fs), self.archive)
 
-    def interact(self, classifications: List[Tuple[str, Optional[float]]]):
-        self.classifications = classifications
-        self._sort_classsifications()
-        pass
+    def interact(
+        self,
+        classifications: Optional[List[Tuple[str, Optional[float]]]] = None,
+        save_points: Optional[List[Tuple[np.ndarray, np.ndarray]]] = None,
+        search_between_points: Optional[
+            Tuple[np.ndarray]
+        ] = None,
+        n_intermediate_solutions: Optional[int] = 1,
+    ):
+        if classifications is not None:
+            # parse new classificaitons and sort the indices and given
+            # prefernece in an usable form
+            self.classifications = classifications
+
+        if save_points is not None:
+            # save the given points in the archive
+            self.archive.extend(save_points)
+
+        if search_between_points is not None:
+            print(search_between_points)
+            # set the flag indicating a preference to generate intermediate
+            # points in the next iteration
+            self.generate_intermediate = True
+            self.search_between_points = search_between_points
+            self.n_intermediate_solutions = n_intermediate_solutions

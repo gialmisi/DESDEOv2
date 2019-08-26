@@ -134,6 +134,7 @@ def test_create_reference_point(simple_nimbus):
     method.iterate()
 
     method.interact([(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)])
+    method._sort_classsifications()
     res1 = method._create_reference_point()
     assert res1[0] == 2.0
     assert res1[1] == method.nadir[1]
@@ -141,6 +142,7 @@ def test_create_reference_point(simple_nimbus):
     assert res1[3] == method.nadir[3]
 
     method.interact([("<", 0), ("=", 0), (">=", 14), (">=", 15)])
+    method._sort_classsifications()
     res2 = method._create_reference_point()
     assert res2[0] == method.ideal[0]
     assert res2[1] == method.current_point[1]
@@ -148,14 +150,81 @@ def test_create_reference_point(simple_nimbus):
     assert res2[3] == 15.0
 
 
-@pytest.mark.snipe
+def test_archive_points(simple_nimbus):
+    method = simple_nimbus
+    method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
+
+    assert method.archive == []
+    ps1 = [(
+        np.array([1, 2, 3]),
+        np.array([0.1, 0.2, 0.3])
+    )]
+
+    method.interact(save_points=ps1)
+    for (a, b) in zip(method.archive, ps1):
+        assert np.all(np.isclose(a, b))
+
+    ps2 = [
+        (np.array([2, 1, 3]),
+         np.array([0.2, 0.1, 0.3])),
+        (np.array([-1, -2, -3]),
+         np.array([-0.1, -0.2, -0.3]))
+    ]
+
+    method.interact(save_points=ps2)
+    for (a, b) in zip(method.archive, ps1+ps2):
+        assert np.all(np.isclose(a, b))
+
+    print(method.archive)
+
+
+def test_interact_intermediate(simple_nimbus):
+    method = simple_nimbus
+    method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
+    method.iterate()
+
+    assert not method.generate_intermediate
+
+    p1 = np.array([0.1, 0.2, 0.3, 0.4])
+    p2 = np.array([11, 22, 33, 44])
+    method.interact(search_between_points=(p1, p2))
+
+    assert method.generate_intermediate
+
+    with pytest.raises(InteractiveMethodError):
+        method.interact(search_between_points=(p1))
+
+    with pytest.raises(InteractiveMethodError):
+        method.interact(search_between_points=(p1, p1, p2))
+
+
+def test_create_intermediate_reference_points(simple_nimbus):
+    method = simple_nimbus
+    method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
+
+    f1 = np.array([2, 5])
+    f2 = np.array([5, 2])
+
+    method.search_between_points = (f1, f2)
+    method.n_intermediate_solutions = 3
+
+    res = method._create_intermediate_reference_points()
+    assert len(res) == method.n_intermediate_solutions
+
+    assert np.all(np.isclose(res[0], f1 + [3/4, -3/4]))
+    assert np.all(np.isclose(res[1], f1 + [3/2, -3/2]))
+    assert np.all(np.isclose(res[2], f1 + [9/4, -9/4]))
+
+
 def test_iterate(simple_nimbus):
     method = simple_nimbus
     method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
 
     method.iterate()
     # method.interact([(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)])
-    # method.interact([("<", 0), ("=", 0), (">=", 14), (">=", 15)])
-    method.interact([("=", 0), ("=", 0), ("<", 0), ("0", 0)])
-    res = method.iterate()
-    print(res)
+    method.interact([("<", 0), ("=", 0), (">=", 14), (">=", 15)])
+    # method.interact([("=", 0), ("=", 0), ("<", 0), ("0", 0)])
+    res_x, res_f, archive = method.iterate()
+    print(res_x)
+    print(res_f)
+    print(archive)
