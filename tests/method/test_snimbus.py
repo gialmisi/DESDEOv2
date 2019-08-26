@@ -216,6 +216,21 @@ def test_create_intermediate_reference_points(simple_nimbus):
     assert np.all(np.isclose(res[2], f1 + [9/4, -9/4]))
 
 
+@pytest.mark.snipe
+def test_calculate_intermediate(simple_nimbus):
+    method = simple_nimbus
+    method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
+    method.iterate()
+    method.interact([(">=", 2.0), ("0", 0), ("<=", 5), ("0", 0)])
+    _, fs, _ = method.iterate()
+    method.interact(search_between_points=(fs[0], fs[1]),
+                    n_intermediate_solutions=5)
+    xs, fs, arch = method.iterate()
+
+    assert len(fs) == len(xs)
+    assert len(fs) == 5
+
+
 def test_iterate(simple_nimbus):
     method = simple_nimbus
     method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))
@@ -225,6 +240,3 @@ def test_iterate(simple_nimbus):
     method.interact([("<", 0), ("=", 0), (">=", 14), (">=", 15)])
     # method.interact([("=", 0), ("=", 0), ("<", 0), ("0", 0)])
     res_x, res_f, archive = method.iterate()
-    print(res_x)
-    print(res_f)
-    print(archive)

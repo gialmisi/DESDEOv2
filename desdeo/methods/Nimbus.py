@@ -35,7 +35,7 @@ from desdeo.solver.ASF import (
 from desdeo.utils.frozen import frozen
 
 
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 
 log_conf_path = path.join(
@@ -398,7 +398,7 @@ class SNimbus(InteractiveMethodBase):
         points.append(f1 + step_vec)
 
         for i in range(1, self.n_intermediate_solutions):
-            points.append(points[i-1] + step_vec)
+            points.append(points[i - 1] + step_vec)
 
         return np.array(points)
 
@@ -464,151 +464,182 @@ class SNimbus(InteractiveMethodBase):
 
         return self.current_point
 
-    def iterate(self):
+    def iterate(
+        self
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         # if first iteration, just return the starting point
         if self.first_iteration:
             self.first_iteration = False
             return self.current_point
 
-        self._sort_classsifications()
-
         res_all_xs: List[np.ndarray] = []
         res_all_fs: List[np.ndarray] = []
-        z_bar = self._create_reference_point()
 
-        # subproblem 1
-        if self.__sprob_1 is None:
-            # create the subproblem and solver
-            self.__sprob_1 = ScalarDataProblem(
-                self.pareto_front, self.objective_vectors
-            )
-            self.__sprob_1.nadir = self.nadir
-            self.__sprob_1.ideal = self.ideal
+        if self.generate_intermediate:
+            # generate n points between two previous points
+            # can resue the solver for subrpoblem 3 here
+            if self.__sprob_3 is None:
+                # create the subproblem and solver
+                self.__sprob_3 = ScalarDataProblem(
+                    self.pareto_front, self.objective_vectors
+                )
+                self.__sprob_3.nadir = self.nadir
+                self.__sprob_3.ideal = self.ideal
 
-            self.__solver_1 = ASFScalarSolver(
-                self.__sprob_1, DiscreteMinimizer()
-            )
-            self.__solver_1.asf = MaxOfTwoASF(self.nadir, self.ideal, [], [])
+                self.__solver_3 = ASFScalarSolver(
+                    self.__sprob_3, DiscreteMinimizer()
+                )
+                self.__solver_3.asf = PointMethodASF(self.nadir, self.ideal)
 
-        # set the constraints for the 1st subproblem
-        sp1_all_cons = []
-        sp1_cons1_idx = np.sort(
-            (self.__ind_set_lt + self.__ind_set_lte + self.__ind_set_eq)
-        )
+            z_bars = self._create_intermediate_reference_points()
+            for z in z_bars:
+                res = self.__solver_3.solve(z)
+                res_all_xs.append(res[0])
+                res_all_fs.append(res[1][0])
 
-        if len(sp1_cons1_idx) > 0:
-            sp1_cons1_f = lambda _, fs: np.where(  # noqa
-                np.all(
-                    fs[:, sp1_cons1_idx] <= self.current_point[sp1_cons1_idx],
-                    axis=1,
-                ),
-                np.ones(len(fs)),
-                -np.ones(len(fs)),
-            )
-            sp1_cons1 = ScalarConstraint(
-                "sp1_cons1",
-                self.pareto_front.shape[1],
-                self.objective_vectors.shape[1],
-                sp1_cons1_f,
-            )
-            sp1_all_cons.append(sp1_cons1)
-
-        sp1_cons2_idx = self.__ind_set_gte
-        if len(sp1_cons2_idx) > 0:
-            sp1_cons2_f = lambda _, fs: np.where(  # noqa
-                np.all(fs[:, sp1_cons2_idx] <= self.__upper_bounds, axis=1),
-                np.ones(len(fs)),
-                -np.ones(len(fs)),
-            )
-            sp1_cons2 = ScalarConstraint(
-                "sp1_cons2",
-                self.pareto_front.shape[1],
-                self.objective_vectors.shape[1],
-                sp1_cons2_f,
-            )
-            sp1_all_cons.append(sp1_cons2)
-
-        self.__sprob_1.constraints = sp1_all_cons
-
-        # solve the subproblem
-        self.__solver_1.asf.lt_inds = self.__ind_set_lt
-        self.__solver_1.asf.lte_inds = self.__ind_set_lte
-
-        sp1_reference = np.zeros(self.objective_vectors.shape[1])
-        sp1_reference[self.__ind_set_lte] = self.__aspiration_levels
-
-        res1 = self.__solver_1.solve(sp1_reference)
-        res_all_xs.append(res1[0])
-        res_all_fs.append(res1[1][0])
-
-        # subproblem 2
-        if self.__sprob_2 is None:
-            # create the subproblem and solver
-            self.__sprob_2 = ScalarDataProblem(
-                self.pareto_front, self.objective_vectors
-            )
-            self.__sprob_2.nadir = self.nadir
-            self.__sprob_2.ideal = self.ideal
-
-            self.__solver_2 = ASFScalarSolver(
-                self.__sprob_2, DiscreteMinimizer()
-            )
-            self.__solver_2.asf = StomASF(self.ideal)
-
-        res2 = self.__solver_2.solve(z_bar)
-        res_all_xs.append(res2[0])
-        res_all_fs.append(res2[1][0])
-
-        # subproblem 3
-        if self.__sprob_3 is None:
-            # create the subproblem and solver
-            self.__sprob_3 = ScalarDataProblem(
-                self.pareto_front, self.objective_vectors
-            )
-            self.__sprob_3.nadir = self.nadir
-            self.__sprob_3.ideal = self.ideal
-
-            self.__solver_3 = ASFScalarSolver(
-                self.__sprob_3, DiscreteMinimizer()
-            )
-            self.__solver_3.asf = PointMethodASF(self.nadir, self.ideal)
-
-        res3 = self.__solver_3.solve(z_bar)
-        res_all_xs.append(res3[0])
-        res_all_fs.append(res3[1][0])
-
-        # subproblem 4
-        if self.__sprob_4 is None:
-            # create the subproblem and solver
-            self.__sprob_4 = ScalarDataProblem(
-                self.pareto_front, self.objective_vectors
-            )
-            self.__sprob_4.nadir = self.nadir
-            self.__sprob_4.ideal = self.ideal
-
-            self.__solver_4 = ASFScalarSolver(
-                self.__sprob_4, DiscreteMinimizer()
-            )
-            self.__solver_4.asf = AugmentedGuessASF(
-                self.nadir, self.__ind_set_free
-            )
         else:
-            # update the indices to be excluded in the existing solver's asf
-            self.__solver_4.asf.indx_to_exclude = self.__ind_set_free
+            # solve the desired number of ASFs
+            self._sort_classsifications()
+            z_bar = self._create_reference_point()
 
-        res4 = self.__solver_4.solve(z_bar)
-        res_all_xs.append(res4[0])
-        res_all_fs.append(res4[1][0])
+            # subproblem 1
+            if self.__sprob_1 is None:
+                # create the subproblem and solver
+                self.__sprob_1 = ScalarDataProblem(
+                    self.pareto_front, self.objective_vectors
+                )
+                self.__sprob_1.nadir = self.nadir
+                self.__sprob_1.ideal = self.ideal
 
+                self.__solver_1 = ASFScalarSolver(
+                    self.__sprob_1, DiscreteMinimizer()
+                )
+                self.__solver_1.asf = MaxOfTwoASF(
+                    self.nadir, self.ideal, [], []
+                )
+
+            # set the constraints for the 1st subproblem
+            sp1_all_cons = []
+            sp1_cons1_idx = np.sort(
+                (self.__ind_set_lt + self.__ind_set_lte + self.__ind_set_eq)
+            )
+
+            if len(sp1_cons1_idx) > 0:
+                sp1_cons1_f = lambda _, fs: np.where(  # noqa
+                    np.all(
+                        fs[:, sp1_cons1_idx]
+                        <= self.current_point[sp1_cons1_idx],
+                        axis=1,
+                    ),
+                    np.ones(len(fs)),
+                    -np.ones(len(fs)),
+                )
+                sp1_cons1 = ScalarConstraint(
+                    "sp1_cons1",
+                    self.pareto_front.shape[1],
+                    self.objective_vectors.shape[1],
+                    sp1_cons1_f,
+                )
+                sp1_all_cons.append(sp1_cons1)
+
+            sp1_cons2_idx = self.__ind_set_gte
+            if len(sp1_cons2_idx) > 0:
+                sp1_cons2_f = lambda _, fs: np.where(  # noqa
+                    np.all(
+                        fs[:, sp1_cons2_idx] <= self.__upper_bounds, axis=1
+                    ),
+                    np.ones(len(fs)),
+                    -np.ones(len(fs)),
+                )
+                sp1_cons2 = ScalarConstraint(
+                    "sp1_cons2",
+                    self.pareto_front.shape[1],
+                    self.objective_vectors.shape[1],
+                    sp1_cons2_f,
+                )
+                sp1_all_cons.append(sp1_cons2)
+
+            self.__sprob_1.constraints = sp1_all_cons
+
+            # solve the subproblem
+            self.__solver_1.asf.lt_inds = self.__ind_set_lt
+            self.__solver_1.asf.lte_inds = self.__ind_set_lte
+
+            sp1_reference = np.zeros(self.objective_vectors.shape[1])
+            sp1_reference[self.__ind_set_lte] = self.__aspiration_levels
+
+            res1 = self.__solver_1.solve(sp1_reference)
+            res_all_xs.append(res1[0])
+            res_all_fs.append(res1[1][0])
+
+            # subproblem 2
+            if self.__sprob_2 is None:
+                # create the subproblem and solver
+                self.__sprob_2 = ScalarDataProblem(
+                    self.pareto_front, self.objective_vectors
+                )
+                self.__sprob_2.nadir = self.nadir
+                self.__sprob_2.ideal = self.ideal
+
+                self.__solver_2 = ASFScalarSolver(
+                    self.__sprob_2, DiscreteMinimizer()
+                )
+                self.__solver_2.asf = StomASF(self.ideal)
+
+            res2 = self.__solver_2.solve(z_bar)
+            res_all_xs.append(res2[0])
+            res_all_fs.append(res2[1][0])
+
+            # subproblem 3
+            if self.__sprob_3 is None:
+                # create the subproblem and solver
+                self.__sprob_3 = ScalarDataProblem(
+                    self.pareto_front, self.objective_vectors
+                )
+                self.__sprob_3.nadir = self.nadir
+                self.__sprob_3.ideal = self.ideal
+
+                self.__solver_3 = ASFScalarSolver(
+                    self.__sprob_3, DiscreteMinimizer()
+                )
+                self.__solver_3.asf = PointMethodASF(self.nadir, self.ideal)
+
+            res3 = self.__solver_3.solve(z_bar)
+            res_all_xs.append(res3[0])
+            res_all_fs.append(res3[1][0])
+
+            # subproblem 4
+            if self.__sprob_4 is None:
+                # create the subproblem and solver
+                self.__sprob_4 = ScalarDataProblem(
+                    self.pareto_front, self.objective_vectors
+                )
+                self.__sprob_4.nadir = self.nadir
+                self.__sprob_4.ideal = self.ideal
+
+                self.__solver_4 = ASFScalarSolver(
+                    self.__sprob_4, DiscreteMinimizer()
+                )
+                self.__solver_4.asf = AugmentedGuessASF(
+                    self.nadir, self.__ind_set_free
+                )
+            else:
+                # update the indices to be excluded in the existing solver's
+                # asf
+                self.__solver_4.asf.indx_to_exclude = self.__ind_set_free
+
+            res4 = self.__solver_4.solve(z_bar)
+            res_all_xs.append(res4[0])
+            res_all_fs.append(res4[1][0])
+
+        # return the obtained solutions and the archiveof existing solutions
         return (np.array(res_all_xs), np.array(res_all_fs), self.archive)
 
     def interact(
         self,
         classifications: Optional[List[Tuple[str, Optional[float]]]] = None,
         save_points: Optional[List[Tuple[np.ndarray, np.ndarray]]] = None,
-        search_between_points: Optional[
-            Tuple[np.ndarray]
-        ] = None,
+        search_between_points: Optional[Tuple[np.ndarray]] = None,
         n_intermediate_solutions: Optional[int] = 1,
     ):
         if classifications is not None:
@@ -621,7 +652,6 @@ class SNimbus(InteractiveMethodBase):
             self.archive.extend(save_points)
 
         if search_between_points is not None:
-            print(search_between_points)
             # set the flag indicating a preference to generate intermediate
             # points in the next iteration
             self.generate_intermediate = True
