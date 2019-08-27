@@ -151,14 +151,14 @@ def test_point_method(four_dimenional_data_with_extremas):
 
 
 def test_augmented_guess(four_dimenional_data_with_extremas):
-    _, fs, nadir, _ = four_dimenional_data_with_extremas
+    xs, fs, nadir, ideal = four_dimenional_data_with_extremas
     reference = np.array([5.2, 0.5, 8.5, 2.3])
-    asf = AugmentedGuessASF(nadir, [1, 3])
+    asf = AugmentedGuessASF(nadir, ideal, [1, 3])
 
     res = asf(fs, reference)
     assert np.all(
-        np.isclose(res, [-1.00001783, 11.79999591, 13.59999843, 1.19998876])
+        np.isclose(res, [-1.00001815, 11.79999576, 13.59999945,  1.1999892])
     )
 
     res_single = asf(fs[0], reference)
-    assert np.isclose(res_single, -1.00001783)
+    assert np.isclose(res_single, -1.00001815)

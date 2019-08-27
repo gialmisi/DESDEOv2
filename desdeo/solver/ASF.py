@@ -470,11 +470,15 @@ class AugmentedGuessASF(ASFBase):
     def __init__(
         self,
         nadir: np.ndarray,
+        ideal: np.ndarray,
         indx_to_exclude: List[int],
+        rho: float = 1e-6,
         rho_sum: float = 1e-6,
     ):
         self.__nadir = nadir
+        self.__ideal = ideal
         self.__indx_to_exclude = indx_to_exclude
+        self.__rho = rho
         self.__rho_sum = rho_sum
 
     @property
@@ -486,12 +490,28 @@ class AugmentedGuessASF(ASFBase):
         self.__nadir = val
 
     @property
+    def ideal(self) -> np.ndarray:
+        return self.__ideal
+
+    @ideal.setter
+    def ideal(self, val: np.ndarray):
+        self.__ideal = val
+
+    @property
     def indx_to_exclude(self) -> List[int]:
         return self.__indx_to_exclude
 
     @indx_to_exclude.setter
     def indx_to_exclude(self, val: List[int]):
         self.__indx_to_exclude = val
+
+    @property
+    def rho(self) -> float:
+        return self.__rho
+
+    @rho.setter
+    def rho(self, val: float):
+        self.__rho = val
 
     @property
     def rho_sum(self) -> float:
@@ -512,6 +532,7 @@ class AugmentedGuessASF(ASFBase):
 
         z = reference_point
         nad = self.nadir
+        uto = self.ideal - self.rho
         ex_mask = np.full((f.shape[1]), True, dtype=bool)
         ex_mask[self.indx_to_exclude] = False
 
@@ -519,8 +540,12 @@ class AugmentedGuessASF(ASFBase):
             (f[:, ex_mask] - nad[ex_mask]) / (nad[ex_mask] - z[ex_mask]),
             axis=1,
         )
-        sum_term = self.rho_sum * np.sum(
+        sum_term_1 = self.rho_sum * np.sum(
             (f[:, ex_mask]) / (nad[ex_mask] - z[ex_mask]), axis=1
         )
+        # avoid division by zeros
+        sum_term_2 = self.rho_sum * np.sum(
+            (f[:, ~ex_mask]) / (nad[~ex_mask] - uto[~ex_mask]), axis=1
+        )
 
-        return max_term + sum_term
+        return max_term + sum_term_1 + sum_term_2
