@@ -178,12 +178,12 @@ def test_iterate_too_much(sphere_pareto):
     _, _ = method.initialize(10, 10, xs, fs)
 
     while method.ith > 1:
+        print(method.ith)
         zs, lows = method.iterate()
         method.interact(zs[0], lows[0])
 
-    last_zs, last_lows = zs, lows
-
     x, f = method.interact(zs[0], lows[0])
+    last_zs, last_lows = method.iterate()
 
     method.iterate()
     method.iterate()
