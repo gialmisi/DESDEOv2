@@ -77,27 +77,27 @@ def test_reference_point_init():
     asf = ReferencePointASF(pref_facs, nadir, utopian)
 
     assert np.all(np.isclose(asf.preferential_factors, pref_facs))
-    assert np.all(np.isclose(asf.nadir_point, nadir))
+    assert np.all(np.isclose(asf.nadir, nadir))
     assert np.all(np.isclose(asf.utopian_point, utopian))
 
-    assert asf.roo == approx(0.1)
+    assert asf.rho == approx(0.1)
 
-    asf.roo = 5
-    assert asf.roo == approx(5)
+    asf.rho = 5
+    assert asf.rho == approx(5)
 
 
 def test_reference_point_call():
     pref_facs = np.array([0.25, 0.5, 0.33, 0.4])
     nadir = np.array([50, 20, 30, 50])
     utopian = np.array([1.5, 8, 3, 7.2])
-    roo = 0.2
+    rho = 0.2
 
-    asf = ReferencePointASF(pref_facs, nadir, utopian, roo=roo)
+    asf = ReferencePointASF(pref_facs, nadir, utopian, rho=rho)
     objective = np.array([10, 12, 15, 22])
     reference = np.array([22, 13, 20, 33])
 
     max_term = np.max(pref_facs * (objective - reference))
-    sum_term = roo * np.sum((objective - reference) / (nadir - utopian))
+    sum_term = rho * np.sum((objective - reference) / (nadir - utopian))
     expected = max_term + sum_term
 
     res = asf(objective, reference)

@@ -6,7 +6,7 @@ import logging
 import logging.config
 from abc import abstractmethod
 from os import path
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 
@@ -41,10 +41,14 @@ class ScalarSolverBase(abc.ABC):
     Args:
         problem (ProblemBase): The underlaying problem object with the
         specifications of the problem to solve.
+        method (NumericalMethodBase): The numerical method to solve the
+        scalarizing functions.
 
     Attributes:
         problem (ProblemBase): The underlaying problem object with the
         specifications of the problem to solve.
+        method (NumericalMethodBase): The numerical method to solve the
+        scalarizing functions.
 
     """
 
@@ -75,6 +79,10 @@ class ScalarSolverBase(abc.ABC):
         decision_vectors: np.ndarray,
         objective_vectors: Optional[np.ndarray],
     ) -> np.ndarray:
+        """A helper function to formulate the scalarized version of the
+        underlying MOO problem
+
+        """
         pass
 
     @abstractmethod
@@ -103,12 +111,10 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
     Args:
         problem (ProblemBase): The underlaying problem object with the
         specifications of the problem to solve.
-        weights (np.ndarray): The weights corresponsing to each objectie in the
-        problem.
+        method (NumericalMethodBase): The numerical method to solve the
+        scalarizing functions.
 
     Attributes:
-        problem (ProblemBase): The underlaying problem object with the
-        specifications of the problem to solve.
         weights (np.ndarray): The weights corresponsing to each objectie in the
         problem.
 
@@ -218,20 +224,11 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
     """A class to represent a solver for solving porblems using the epsilon
     constraint method.
 
-    Args:
-        problem (ProblemBase): The underlaying problem obeject with the
-        specifications of the problem to solve
-        epsilons (np.ndarray): The epsilon values to set as the upper limit
-        for each objective when treated as a constraint.
-
     Attributes:
-        problem (ProblemBase): The underlaying problem obeject with the
-        specifications of the problem to solve
         epsilons (np.ndarray): The epsilon values to set as the upper limit
         for each objective when treated as a constraint.
-
-    Note:
-        To be implemented.
+        to_be_minimized (int): Integer representing which objective function
+        should be minimized.
 
     """
 
@@ -246,6 +243,16 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
 
     @epsilons.setter
     def epsilons(self, val: np.ndarray):
+        """Set the epsilon values
+
+        Args:
+            epsilons (np.ndarray): Array of the epsilon values.
+
+        Raises:
+            ScalarSolverError: The array with the epsilon values is of the
+            wrong length.
+
+        """
         if len(val) != self.problem.n_of_objectives:
             msg = (
                 "The length of the epsilons array '{}' must match the "
@@ -319,6 +326,7 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
         Args:
             to_be_minimized (int): The index of the problem in the underlaying
             MOProblem to be solved.
+
         Returns:
             Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]: A tuple
             containing the decision variables as the first element and the
@@ -349,13 +357,11 @@ class ASFScalarSolver(ScalarSolverBase):
     """A class to represent a solver tha uses the achievement scalarizing
     method to solve a multiobjective optimization problem.
 
-    Args:
-        problem (ProblemBase): The underlaying problem object with the
-        specifications of the problem to solve.
-
     Attributes:
-        problem (ProblemBase): The underlaying problem object with the
-        specifications of the problem to solve.
+        asf (ASFBase): The ASF to be used in the scalarization of the
+        underlying MOO problem.
+        reference_point (np.ndarray): The reference point (or similar) that is
+        used in the ASF.
 
     """
 

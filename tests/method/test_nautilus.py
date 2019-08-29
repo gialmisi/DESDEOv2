@@ -132,7 +132,7 @@ def test_nautilus_initialization(RiverPollutionProblem):
     assert len(method.fs) == method.itn + 1
     assert len(method.ds) == method.itn + 1
 
-    assert np.all(np.isclose(method.asf.nadir_point, method.problem.nadir))
+    assert np.all(np.isclose(method.asf.nadir, method.problem.nadir))
     assert np.all(np.isclose(method.asf.utopian_point, method.problem.ideal))
 
     assert np.all(np.isclose(z, method.problem.nadir))
@@ -179,7 +179,7 @@ def test_nautilus_iterate(RiverPollutionProblem):
     problem.nadir = np.array([-4.07, -2.83, -0.32, 9.71])
     problem.ideal = np.array([-6.34, -3.44, -7.50, 0.00])
     method = Nautilus(problem)
-    method.asf.roo = 0.000001
+    method.asf.rho = 0.000001
     z0, _, _ = method.initialize(3)
 
     # first interaction

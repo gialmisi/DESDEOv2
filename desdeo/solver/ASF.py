@@ -36,20 +36,17 @@ class ASFBase(abc.ABC):
     def __call__(
         self, objective_vector: np.ndarray, reference_point: np.ndarray
     ) -> Union[float, np.ndarray]:
-        """Guarantees that every class deriving from this should be usable like
-        a function.
+        """Evaluate the ASF.
 
         Args:
-            objective_vector(np.ndarray): A vector representing the objective
-            values of a MOO problem that was solved with some decision
-            variables.
-            reference_point(np.ndarray): The reference point used in
-            calculating the value of the ASF. If an objective's reference value
-            is set to np.nan, that objective is ignored in the calculation of
-            the ASF.
+            objective_vectors (np.ndarray): The objective vectors to calulate
+            the values.
+            reference_point (np.ndarray): The reference point to calculate the
+            values.
 
         Returns:
-            float: The result of the ASF function.
+            Union[float, np.ndarray]: Either a single ASF value or a vector of
+            values if objective is a 2D array.
 
         Note:
             The reference point may not always necessarely be feasible, but
@@ -95,6 +92,10 @@ class SimpleASF(ASFBase):
             reference_point (np.ndarray): A vector representing a reference
             point in the solution space.
 
+        Raises:
+            ASFError: The dimensions of the objective vector and reference
+            point don't match.
+
         Note:
             The shaped of objective_vector and reference_point must match.
 
@@ -120,13 +121,22 @@ class ReferencePointASF(ASFBase):
     """Uses a reference point q and preferenial factors to scalarize a MOO problem.
     Defined in `Miettinen 2010`_ equation (2).
 
-    Arguments:
+    Args:
         preferential_factors (np.ndarray): The preferential factors.
-        nadir_point (np.ndarray): The nadir point of the MOO problem to be
+        nadir (np.ndarray): The nadir point of the MOO problem to be
         scalarized.
         utopian_point (np.ndarray): The utopian point of the MOO problem to be
         scalarized.
-        roo (float): A small number to be used to scale the sm factor in the
+        rho (float): A small number to be used to scale the sm factor in the
+        ASF. Defaults to 0.1.
+
+    Attributes:
+        preferential_factors (np.ndarray): The preferential factors.
+        nadir (np.ndarray): The nadir point of the MOO problem to be
+        scalarized.
+        utopian_point (np.ndarray): The utopian point of the MOO problem to be
+        scalarized.
+        rho (float): A small number to be used to scale the sm factor in the
         ASF. Defaults to 0.1.
 
     .. _Miettinen 2010:
@@ -140,14 +150,14 @@ class ReferencePointASF(ASFBase):
     def __init__(
         self,
         preferential_factors: np.ndarray,
-        nadir_point: np.ndarray,
+        nadir: np.ndarray,
         utopian_point: np.ndarray,
-        roo: float = 0.1,
+        rho: float = 0.1,
     ):
         self.__preferential_factors = preferential_factors
-        self.__nadir_point = nadir_point
+        self.__nadir = nadir
         self.__utopian_point = utopian_point
-        self.__roo = roo
+        self.__rho = rho
 
     @property
     def preferential_factors(self) -> np.ndarray:
@@ -158,12 +168,12 @@ class ReferencePointASF(ASFBase):
         self.__preferential_factors = val
 
     @property
-    def nadir_point(self) -> np.ndarray:
-        return self.__nadir_point
+    def nadir(self) -> np.ndarray:
+        return self.__nadir
 
-    @nadir_point.setter
-    def nadir_point(self, val: np.ndarray):
-        self.__nadir_point = val
+    @nadir.setter
+    def nadir(self, val: np.ndarray):
+        self.__nadir = val
 
     @property
     def utopian_point(self) -> np.ndarray:
@@ -174,42 +184,53 @@ class ReferencePointASF(ASFBase):
         self.__utopian_point = val
 
     @property
-    def roo(self) -> float:
-        return self.__roo
+    def rho(self) -> float:
+        return self.__rho
 
-    @roo.setter
-    def roo(self, val: float):
-        self.__roo = val
+    @rho.setter
+    def rho(self, val: float):
+        self.__rho = val
 
     def __call__(
         self, objective_vector: np.ndarray, reference_point: np.ndarray
     ) -> Union[float, np.ndarray]:
-        """The actual implementation of the ASF.
-
-        Arguments:
-            objective_vector (np.ndarray): An objective vector calculated using
-            some decision variables in the decision space of the MOO probelm.
-            reference_point (np.ndarray): Some reference point.
-
-        Returns:
-            float: The value of the ASF.
-
-        """
         mu = self.__preferential_factors
         f = objective_vector
         q = reference_point
-        roo = self.__roo
-        z_nad = self.__nadir_point
+        rho = self.__rho
+        z_nad = self.__nadir
         z_uto = self.__utopian_point
 
         max_term = np.max(mu * (f - q), axis=-1)
-        sum_term = roo * np.sum((f - q) / (z_nad - z_uto), axis=-1)
+        sum_term = rho * np.sum((f - q) / (z_nad - z_uto), axis=-1)
 
         return max_term + sum_term
 
 
 class MaxOfTwoASF(ASFBase):
     """Implements the ASF as defined in eq. 3.1 `Miettinen 2006`_
+
+    Args:
+        nadir (np.ndarray): The nadir point.
+        ideal (np.ndarray): The ideal point.
+        lt_inds (List[int]): Indices of the objectives categorized to be
+        decreased.
+        lte_inds (List[int]): Indices of the objectives categorized to be
+        reduced until some value is reached.
+        rho (float): A small number to form the utopian point.
+        rho_sum (float): A small number to be used as a weight for the sum
+        term.
+
+    Attributes:
+        nadir (np.ndarray): The nadir point.
+        ideal (np.ndarray): The ideal point.
+        lt_inds (List[int]): Indices of the objectives categorized to be
+        decreased.
+        lte_inds (List[int]): Indices of the objectives categorized to be
+        reduced until some value is reached.
+        rho (float): A small number to form the utopian point.
+        rho_sum (float): A small number to be used as a weight for the sum
+        term.
 
     .. _Miettinen 2006:
         Miettinen, K. & Mäkelä, Marko M.
@@ -285,19 +306,6 @@ class MaxOfTwoASF(ASFBase):
     def __call__(
         self, objective_vector: np.ndarray, reference_point: np.ndarray
     ) -> Union[float, np.ndarray]:
-        """Compute the value for the ASF using the objective vectors and
-        reference point given.
-
-        Parameters:
-            objective_vector(np.ndarray): The objective vector(s)
-            reference_point(np.ndarray): The reference point
-
-        Returns:
-            Union[float, np.ndarray]: The asf value(s). Either a float for if a
-            single objective vector was given, or an array if multiple
-            objective vectors were given.
-
-        """
         # assure this function works with single objective vectors
         if objective_vector.ndim == 1:
             f = objective_vector.reshape((1, -1))
@@ -322,6 +330,19 @@ class MaxOfTwoASF(ASFBase):
 class StomASF(ASFBase):
     """Implementation of the satisficing trade-off method (STOM) as presented
     in `Miettinen 2006` equation (3.2)
+
+    Args:
+        ideal (np.ndarray): The ideal point.
+        rho (float): A small number to form the utopian point.
+        rho_sum (float): A small number to be used as a weight for the sum
+        term.
+
+    Attributes:
+        ideal (np.ndarray): The ideal point.
+        rho (float): A small number to form the utopian point.
+        rho_sum (float): A small number to be used as a weight for the sum
+        term.
+
 
     .. _Miettinen 2006:
         Miettinen, K. & Mäkelä, Marko M.
@@ -363,7 +384,7 @@ class StomASF(ASFBase):
 
     def __call__(
         self, objective_vectors: np.ndarray, reference_point: np.ndarray
-    ):
+    ) -> Union[float, np.ndarray]:
         # assure this function works with single objective vectors
         if objective_vectors.ndim == 1:
             f = objective_vectors.reshape((1, -1))
@@ -383,13 +404,20 @@ class PointMethodASF(ASFBase):
     """Implementation of the reference point based ASF as presented
     in `Miettinen 2006` equation (3.3)
 
+    Args:
+        nadir (np.ndarray): The nadir point.
+        ideal (np.ndarray): The ideal point.
+        rho (float): A small number to form the utopian point.
+        rho_sum (float): A small number to be used as a weight for the sum
+        term.
+
+    Note:
+        Lack of better name...
+
     .. _Miettinen 2006:
         Miettinen, K. & Mäkelä, Marko M.
         Synchronous approach in interactive multiobjective optimization
         European Journal of Operational Research, 2006, 170, 909-922
-
-    Note:
-        Lack of better name...
 
     """
 
@@ -459,6 +487,15 @@ class PointMethodASF(ASFBase):
 class AugmentedGuessASF(ASFBase):
     """Implementation of the augmented GUESS related ASF as presented in
     `Miettinen 2006` equation (3.4)
+
+    Args:
+        nadir (np.ndarray): The nadir point.
+        ideal (np.ndarray): The ideal point.
+        indx_to_exclude (List[int]): The indices of the objective functions to
+        be excluded in calculating the first temr of the ASF.
+        rho (float): A small number to form the utopian point.
+        rho_sum (float): A small number to be used as a weight for the sum
+        term.
 
     .. _Miettinen 2006:
         Miettinen, K. & Mäkelä, Marko M.

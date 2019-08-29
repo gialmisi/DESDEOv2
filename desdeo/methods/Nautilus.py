@@ -408,7 +408,7 @@ class Nautilus(InteractiveMethodBase):
 
         self.ds = [0.0] * (self.itn + 1)
 
-        self.asf.nadir_point = self.problem.nadir
+        self.asf.nadir = self.problem.nadir
         self.asf.utopian_point = self.problem.ideal - self.epsilon
 
         return (
