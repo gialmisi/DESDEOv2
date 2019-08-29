@@ -21,8 +21,8 @@ def test_init(dummy_problem, dummy_data):
     xs, fs = dummy_data
     problem = dummy_problem
 
-    assert np.all(np.isclose(xs, problem.variables))
-    assert np.all(np.isclose(fs, problem.objectives))
+    assert np.all(np.isclose(xs, problem.decision_vectors))
+    assert np.all(np.isclose(fs, problem.objective_vectors))
 
     assert 3 == problem.n_of_variables
     assert 2 == problem.n_of_objectives

@@ -202,8 +202,8 @@ class WeightingMethodScalarSolver(ScalarSolverBase):
             x = self.method.run(
                 self._evaluator,
                 bounds,
-                variables=self.problem.variables,
-                objectives=self.problem.objectives,
+                variables=self.problem.decision_vectors,
+                objectives=self.problem.objective_vectors,
             )
         elif isinstance(self.method, ScipyDE):
             # Scipy does not work with vectors, so we just feed it the first
@@ -333,8 +333,8 @@ class EpsilonConstraintScalarSolver(ScalarSolverBase):
             x = self.method.run(
                 self._evaluator,
                 bounds,
-                variables=self.problem.variables,
-                objectives=self.problem.objectives,
+                variables=self.problem.decision_vectors,
+                objectives=self.problem.objective_vectors,
             )
         elif isinstance(self.method, ScipyDE):
             # Scipy does not work with vectors, so we just feed it the first
@@ -453,8 +453,8 @@ class ASFScalarSolver(ScalarSolverBase):
                 evaluator_args={
                     "constraints": self.problem.evaluate_constraint_values()
                 },
-                variables=self.problem.variables,
-                objectives=self.problem.objectives,
+                variables=self.problem.decision_vectors,
+                objectives=self.problem.objective_vectors,
             )
         elif isinstance(self.method, ScipyDE):
             # Scipy does not work with vectors, so we just feed it the first

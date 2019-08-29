@@ -78,12 +78,12 @@ class ProblemBase(ABC):
 
     @abstractmethod
     def evaluate(
-        self, decision_variables: np.ndarray
-    ) -> Tuple[np.ndarray, Union[np.ndarray, None]]:
+        self, decision_vectors: np.ndarray
+    ) -> Union[np.ndarray, Tuple[np.ndarray, Union[np.ndarray, None]]]:
         """Evaluates the problem using an ensemble of input vectors.
 
         Args:
-            decision_variables (np.ndarray): An array of decision variable
+            decision_vectors (np.ndarray): An array of decision variable
             input vectors.
 
         Returns:
@@ -318,31 +318,31 @@ class ScalarMOProblem(ProblemBase):
         return np.array([var.get_bounds()[1] for var in self.variables])
 
     def evaluate(
-        self, decision_variables: np.ndarray
-    ) -> Tuple[np.ndarray, Union[None, np.ndarray]]:
+        self, decision_vectors: np.ndarray
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """Evaluates the problem using an ensemble of input vectors.
 
         Args:
-            decision_variables (np.ndarray): An array of decision variable
-            input vectors.
+            decision_vectors (np.ndarray): An 2D array of decision variable
+            input vectors. Each column represent the values of each decision
+            variable.
 
         Returns:
-            (tuple): tuple containing:
-                solutions (np.ndarray): The corresponding objective function
-                values for each input vector.
-                constraints (np.ndarray): The constraint values of the problem
-                corresponding each input vector.
+            Tuple[np.ndarray, Union[None, np.ndarray]]: If constraint are
+            defined, returns the objective vector values and corresponding
+            constraint values. Or, if no constraints are defined, returns just
+            the objective vector values with None as the constraint values.
 
         Raises:
-            ProblemError: The decision_variables have wrong dimensions.
+            ProblemError: The decision_vectors have wrong dimensions.
 
         """
-        # Reshape decision_variables with single row to work with the code
-        shape = np.shape(decision_variables)
+        # Reshape decision_vectors with single row to work with the code
+        shape = np.shape(decision_vectors)
         if len(shape) == 1:
-            decision_variables = np.reshape(decision_variables, (1, shape[0]))
+            decision_vectors = np.reshape(decision_vectors, (1, shape[0]))
 
-        (n_rows, n_cols) = np.shape(decision_variables)
+        (n_rows, n_cols) = np.shape(decision_vectors)
 
         if n_cols != self.n_of_variables:
             msg = (
@@ -353,7 +353,7 @@ class ScalarMOProblem(ProblemBase):
             logger.error(msg)
             raise ProblemError(msg)
 
-        objective_values: np.ndarray = np.ndarray(
+        objective_vectors: np.ndarray = np.ndarray(
             (n_rows, self.n_of_objectives), dtype=float
         )
         if self.n_of_constraints > 0:
@@ -365,8 +365,8 @@ class ScalarMOProblem(ProblemBase):
 
         # Calculate the objective values
         for (col_i, objective) in enumerate(self.objectives):
-            objective_values[:, col_i] = np.array(
-                list(map(objective.evaluate, decision_variables))
+            objective_vectors[:, col_i] = np.array(
+                list(map(objective.evaluate, decision_vectors))
             )
 
         # Calculate the constraint values
@@ -376,39 +376,51 @@ class ScalarMOProblem(ProblemBase):
                     list(
                         map(
                             constraint.evaluate,
-                            decision_variables,
-                            objective_values,
+                            decision_vectors,
+                            objective_vectors,
                         )
                     )
                 )
 
-        return (objective_values, constraint_values)
+        return (objective_vectors, constraint_values)
 
 
 class ScalarDataProblem(ProblemBase):
     """Defines a problem with pre-computed data representing a multiobjective
     optimization problem with scalar valued objective functions.
 
-    Parameters:
-        variables(np.ndarray): A 2D vector of variables. Each row represents a
-        solution with the value for each variables defined on the columns.
-        objectives(np.ndarray): A 2D vector of objective function values. Each
-        row represents one objective vector with the values for the invidual
-        objective functions defined on the columns.
+    Args:
+        decision_vectors (np.ndarray): A 2D vector of decision_vectors. Each
+        row represents a solution with the value for each decision_vectors
+        defined on the columns.
+        objective_vectors (np.ndarray): A 2D vector of
+        objective function values. Each row represents one objective vector
+        with the values for the invidual objective functions defined on the
+        columns.
+
+    Attributes:
+        decision_vectors (np.ndarray): See args
+        objective_vectors (np.ndarray): See args
+        epsilon (float): A small floating point number to shift the bounds of
+        the variables. See, get_variable_bounds
+        constraints (List[ScalarConstraint]): A list of defined constraints.
+        nadir (np.ndarray): The nadir point of the problem.
+        ideal (np.ndarray): The ideal point of the problem.
 
     Note:
-        It is assumed that the variables and objectives follow a direct
+        It is assumed that the decision_vectors and objectives follow a direct
         one-to-one mapping, i.e., the objective values on the ith row in
         'objectives' should represent the solution of the multiobjective
-        problem when evaluated with the variables on the ith row in
-        'variables'.
+        problem when evaluated with the decision_vectors on the ith row in
+        'decision_vectors'.
 
     """
 
-    def __init__(self, variables: np.ndarray, objectives: np.ndarray):
+    def __init__(self, decision_vectors: np.ndarray,
+                 objective_vectors: np.ndarray):
         super().__init__()
-        self.__variables: np.ndarray = variables
-        self.__objectives: np.ndarray = objectives
+        self.__decision_vectors: np.ndarray = decision_vectors
+        self.__objective_vectors: np.ndarray = objective_vectors
         # epsilon is used when computing the bounds. We don't want to exclude
         # any of the solutions that contain border values.
         # See get_variable_bounds
@@ -419,7 +431,7 @@ class ScalarDataProblem(ProblemBase):
         self.__constraints: List[ScalarConstraint] = []
 
         try:
-            self.n_of_variables = self.variables.shape[1]
+            self.n_of_variables = self.decision_vectors.shape[1]
         except IndexError as e:
             msg = (
                 "Check the variable dimensions. Is it a 2D array? "
@@ -429,7 +441,7 @@ class ScalarDataProblem(ProblemBase):
             raise ProblemError(msg)
 
         try:
-            self.n_of_objectives = self.objectives.shape[1]
+            self.n_of_objectives = self.objective_vectors.shape[1]
         except IndexError as e:
             msg = (
                 "Check the objective dimensions. Is it a 2D array? "
@@ -438,24 +450,24 @@ class ScalarDataProblem(ProblemBase):
             logger.error(msg)
             raise ProblemError(msg)
 
-        self.__nadir = np.max(self.objectives, axis=0)
-        self.__ideal = np.min(self.objectives, axis=0)
+        self.nadir = np.max(self.objective_vectors, axis=0)
+        self.ideal = np.min(self.objective_vectors, axis=0)
 
     @property
-    def variables(self) -> np.ndarray:
-        return self.__variables
+    def decision_vectors(self) -> np.ndarray:
+        return self.__decision_vectors
 
-    @variables.setter
-    def variables(self, val: np.ndarray):
-        self.__variables = val
+    @decision_vectors.setter
+    def decision_vectors(self, val: np.ndarray):
+        self.__decision_vectors = val
 
     @property
-    def objectives(self) -> np.ndarray:
-        return self.__objectives
+    def objective_vectors(self) -> np.ndarray:
+        return self.__objective_vectors
 
-    @objectives.setter
-    def objectives(self, val: np.ndarray):
-        self.__objectives = val
+    @objective_vectors.setter
+    def objective_vectors(self, val: np.ndarray):
+        self.__objective_vectors = val
 
     @property
     def epsilon(self) -> float:
@@ -473,49 +485,70 @@ class ScalarDataProblem(ProblemBase):
     def constraints(self, val: List[ScalarConstraint]):
         self.__constraints = val
 
-    @property
-    def nadir(self) -> np.ndarray:
-        return self.__nadir
-
-    @nadir.setter
-    def nadir(self, val: np.ndarray):
-        self.__nadir = val
-
-    @property
-    def ideal(self) -> np.ndarray:
-        return self.__ideal
-
-    @ideal.setter
-    def ideal(self, val: np.ndarray):
-        self.__ideal = val
-
     def get_variable_bounds(self):
+        """Return the variable bounds. A small value might be added to the
+        upper bounds and substracted from the lower bounds to return closed
+        bounds.
+
+        Note:
+            If self.epsilon is zero, the bounds will represent an open range.
+
+        """
         return np.stack(
             (
-                np.min(self.variables, axis=0) - self.epsilon,
-                np.max(self.variables, axis=0) + self.epsilon,
+                np.min(self.decision_vectors, axis=0) - self.epsilon,
+                np.max(self.decision_vectors, axis=0) + self.epsilon,
             ),
             axis=1,
         )
 
-    def evaluate_constraint_values(self) -> Union[np.ndarray, None]:
+    def evaluate_constraint_values(self) -> Optional[np.ndarray]:
+        """Evaluate the constraint values for each defined constraint. A
+        positive value indicates that a constraint is adhered to, a negative
+        value indicates a violated constraint.
+
+        Returns:
+            Optional[np.ndarray]: A 2D array with each row representing the
+            constraint values for different objective vectors. One column for
+            each constraint. If no constraint function are defined, returns
+            None.
+
+        """
         if len(self.constraints) == 0:
             return None
 
         constraint_values = np.zeros(
-            (len(self.objectives), len(self.constraints))
+            (len(self.objective_vectors), len(self.constraints))
         )
 
         for ind, con in enumerate(self.constraints):
             constraint_values[:, ind] = con.evaluate(
-                self.variables, self.objectives
+                self.decision_vectors, self.objective_vectors
             )
 
         return constraint_values
 
     def evaluate(
-        self, decision_variables: np.ndarray
-    ) -> Tuple[np.ndarray, Union[np.ndarray, None]]:
+        self, decision_vectors: np.ndarray
+    ) -> np.ndarray:
+        """Evaluate the values of the objectives corresponding to the decision
+        decision_vectors.
+
+        Args:
+            decision_vectors (np.ndarray): A 2D array with the decision
+            decision_vectors to be evaluated on each row.
+
+        Returns:
+            nd.ndarray: A 2D array with the objective values corresponding to
+            each decision vectors on the rows.
+
+        Note:
+            At the moment, this function just maps the given decision
+            decision_vectors to the closest decision variable present (using an
+            L2 distance) in the problem and returns the corresponsing objective
+            vector.
+
+            """
         if not self.__model_exists:
             logger.warning(
                 "Warning: Approximating the closest known point in "
@@ -524,9 +557,9 @@ class ScalarDataProblem(ProblemBase):
             )
             idx = np.unravel_index(
                 np.linalg.norm(
-                    self.variables - decision_variables, axis=1
+                    self.decision_vectors - decision_vectors, axis=1
                 ).argmin(),
-                self.objectives.shape,
+                self.objective_vectors.shape,
                 order="F",
             )[0]
 
@@ -535,4 +568,4 @@ class ScalarDataProblem(ProblemBase):
             logger.error(msg)
             raise NotImplementedError(msg)
 
-        return (self.objectives[idx],)
+        return (self.objective_vectors[idx],)

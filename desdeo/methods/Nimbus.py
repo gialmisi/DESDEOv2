@@ -434,8 +434,8 @@ class SNimbus(InteractiveMethodBase):
         self.n_points = n_solutions
 
         if isinstance(self.problem, ScalarDataProblem):
-            self.pareto_front = self.problem.variables
-            self.objective_vectors = self.problem.objectives
+            self.pareto_front = self.problem.decision_vectors
+            self.objective_vectors = self.problem.objective_vectors
 
         elif pareto_front is not None and objective_vectors is not None:
             self.pareto_front = pareto_front
