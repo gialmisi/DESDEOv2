@@ -651,8 +651,11 @@ class SNimbus(InteractiveMethodBase):
 
         # return the obtained solutions and the archiveof existing solutions
         # deepcopy, beacuse we dont want to return a reference to the archive
-        return (np.array(res_all_xs), np.array(res_all_fs),
-                deepcopy(self.archive))
+        return (
+            np.array(res_all_xs),
+            np.array(res_all_fs),
+            deepcopy(self.archive),
+        )
 
     def interact(
         self,

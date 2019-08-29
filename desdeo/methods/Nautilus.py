@@ -899,6 +899,8 @@ class ENautilus(InteractiveMethodBase):
         Note:
             The data to be used must be available in the underlying problem OR
             given explicitly.
+            The lower bounds given in the last iteration are not relevant and
+            might be non-sensical. Just ignore them.
 
         """
         if isinstance(self.problem, ScalarDataProblem):
@@ -972,10 +974,11 @@ class ENautilus(InteractiveMethodBase):
             be padded with NaNs.
 
         """
-        if self.ith < 1:
+        if self.ith <= 1:
             logger.info(
                 (
-                    "Trying to iterate past the last iteration. Please call "
+                    "Last iteration, or trying to iterate past the last "
+                    "iteration. Please call "
                     "interact with the final preference to generate the final "
                     "solution. Returning the most recent "
                     "intermediate points."
@@ -1077,12 +1080,13 @@ class ENautilus(InteractiveMethodBase):
 
         self.zpref = preferred_point
 
-        if self.ith == 1:
+        if self.ith <= 1:
             # stop the algorithm and return the final solution and the
             # corresponding objective vector
             idx = np.linalg.norm(
                 self.obj_sub[self.h] - self.zpref, axis=1
             ).argmin()
+            self.ith = 0
             return self.par_sub[self.h][idx], self.obj_sub[self.h][idx]
 
         # Calculate the new reachable pareto solutions and objective vectors
