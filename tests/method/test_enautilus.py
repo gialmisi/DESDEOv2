@@ -9,7 +9,6 @@ from desdeo.methods.InteractiveMethod import InteractiveMethodError
 from desdeo.methods.Nautilus import ENautilus
 from desdeo.problem.Problem import ScalarDataProblem
 
-
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 

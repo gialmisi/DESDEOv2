@@ -4,12 +4,12 @@ from pytest import approx
 
 from desdeo.solver.ASF import (
     ASFError,
+    AugmentedGuessASF,
+    MaxOfTwoASF,
+    PointMethodASF,
     ReferencePointASF,
     SimpleASF,
-    MaxOfTwoASF,
     StomASF,
-    PointMethodASF,
-    AugmentedGuessASF,
 )
 
 
@@ -157,7 +157,7 @@ def test_augmented_guess(four_dimenional_data_with_extremas):
 
     res = asf(fs, reference)
     assert np.all(
-        np.isclose(res, [-1.00001815, 11.79999576, 13.59999945,  1.1999892])
+        np.isclose(res, [-1.00001815, 11.79999576, 13.59999945, 1.1999892])
     )
 
     res_single = asf(fs[0], reference)

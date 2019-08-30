@@ -1,13 +1,14 @@
+import os
+
 import numpy as np
 import pytest
-import os
 
 from desdeo.problem.Constraint import (
     ScalarConstraint,
     constraint_function_factory,
 )
 from desdeo.problem.Objective import ScalarObjective
-from desdeo.problem.Problem import ScalarMOProblem, ScalarDataProblem
+from desdeo.problem.Problem import ScalarDataProblem, ScalarMOProblem
 from desdeo.problem.Variable import Variable
 
 

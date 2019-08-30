@@ -952,8 +952,10 @@ class ENautilus(InteractiveMethodBase):
             self.pareto_front = self.problem.decision_vectors
             self.objective_vectors = self.problem.objective_vectors
         else:
-            msg = ("ENautilus currently supports only "
-                   "solving ScalarDataProblems")
+            msg = (
+                "ENautilus currently supports only "
+                "solving ScalarDataProblems"
+            )
             logger.error(msg)
             raise NotImplementedError(msg)
 

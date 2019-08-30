@@ -5,9 +5,9 @@ NIMBUS-family are defined here
 
 import logging
 import logging.config
-from os import path
 from copy import deepcopy
-
+from os import path
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -15,30 +15,21 @@ from desdeo.methods.InteractiveMethod import (
     InteractiveMethodBase,
     InteractiveMethodError,
 )
-
+from desdeo.problem.Constraint import ScalarConstraint
 from desdeo.problem.Problem import (
     ProblemBase,
-    ScalarMOProblem,
     ScalarDataProblem,
+    ScalarMOProblem,
 )
-
-from desdeo.problem.Constraint import ScalarConstraint
-
-from desdeo.solver.ScalarSolver import ASFScalarSolver
-from desdeo.solver.NumericalMethods import DiscreteMinimizer
 from desdeo.solver.ASF import (
+    AugmentedGuessASF,
     MaxOfTwoASF,
     PointMethodASF,
     StomASF,
-    AugmentedGuessASF,
 )
-
-
+from desdeo.solver.NumericalMethods import DiscreteMinimizer
+from desdeo.solver.ScalarSolver import ASFScalarSolver
 from desdeo.utils.frozen import frozen
-
-
-from typing import Optional, List, Tuple, Union
-
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"
@@ -135,7 +126,10 @@ class SNimbus(InteractiveMethodBase):
         # flag to generate intermediate points
         self.__generate_intermediate: bool = False
         # points between intermediate solutions are explored
-        self.__search_between_points: Tuple[np.ndarray, np.ndarray] = (None, None)  # noqa
+        self.__search_between_points: Tuple[np.ndarray, np.ndarray] = (
+            None,
+            None,
+        )  # noqa
         # number of intermediate points to be generated
         self.__n_intermediate_solutions: int = 0
         # subproblems
@@ -443,9 +437,7 @@ class SNimbus(InteractiveMethodBase):
         return np.array(points)
 
     def initialize(  # type: ignore
-        self,
-        n_solutions: int,
-        starting_point: Optional[np.ndarray] = None
+        self, n_solutions: int, starting_point: Optional[np.ndarray] = None
     ) -> np.ndarray:
         """Initialize the method and return the starting objective vector.
 
@@ -478,9 +470,7 @@ class SNimbus(InteractiveMethodBase):
             self.objective_vectors = self.problem.objective_vectors
 
         else:
-            msg = (
-                "Only supoorts solving for SacalarDataProblem at the moment."
-            )
+            msg = "Only supoorts solving for SacalarDataProblem at the moment."
             logger.error(msg)
             raise NotImplementedError(msg)
 
@@ -619,7 +609,9 @@ class SNimbus(InteractiveMethodBase):
 
                 # solve the subproblem
                 self.__solver_1.asf.lt_inds = self.__ind_set_lt  # type: ignore
-                self.__solver_1.asf.lte_inds = self.__ind_set_lte  # type: ignore, # noqa
+                self.__solver_1.asf.lte_inds = (  # type: ignore
+                    self.__ind_set_lte
+                )  # type: ignore, # noqa
 
                 sp1_reference = np.zeros(self.objective_vectors.shape[1])
                 sp1_reference[self.__ind_set_lte] = self.__aspiration_levels
@@ -687,7 +679,9 @@ class SNimbus(InteractiveMethodBase):
                 else:
                     # update the indices to be excluded in the existing
                     # solver's asf
-                    self.__solver_4.asf.indx_to_exclude = self.__ind_set_free  # type: ignore # noqa
+                    self.__solver_4.asf.indx_to_exclude = (  # type: ignore
+                        self.__ind_set_free
+                    )
 
                 res4 = self.__solver_4.solve(z_bar)  # type: ignore
                 res_all_xs.append(res4[0])

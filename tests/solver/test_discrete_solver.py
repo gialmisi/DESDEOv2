@@ -1,16 +1,13 @@
 import numpy as np
-import pytest
-from pytest import approx
 
+from desdeo.problem.Problem import ScalarConstraint
 from desdeo.solver.ASF import SimpleASF
 from desdeo.solver.NumericalMethods import DiscreteMinimizer
 from desdeo.solver.ScalarSolver import (
     ASFScalarSolver,
     EpsilonConstraintScalarSolver,
-    ScalarSolverError,
     WeightingMethodScalarSolver,
 )
-from desdeo.problem.Problem import ScalarConstraint
 
 
 def test_weighting(simple_data_problem):

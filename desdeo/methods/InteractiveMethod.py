@@ -4,7 +4,6 @@
 
 import abc
 from abc import abstractmethod
-from typing import Any, Optional, Union
 
 from desdeo.problem.Problem import ProblemBase
 

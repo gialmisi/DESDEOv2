@@ -4,7 +4,7 @@ import logging
 import logging.config
 from abc import ABC, abstractmethod
 from os import path
-from typing import Any, Callable, Optional, Tuple, Dict, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import numpy as np
 from scipy.optimize import differential_evolution

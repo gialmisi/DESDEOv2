@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 
 from desdeo.solver.NumericalMethods import (
     DiscreteMinimizer,
