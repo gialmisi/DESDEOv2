@@ -2,7 +2,7 @@ import pytest
 
 from desdeo.methods.Nimbus import SNimbus
 from desdeo.methods.InteractiveMethod import InteractiveMethodError
-from desdeo.problem.Problem import ScalarDataProblem
+from desdeo.problem.Problem import ScalarDataProblem, ScalarMOProblem
 
 
 import numpy as np
@@ -24,8 +24,8 @@ def simple_nimbus(four_dimenional_data_with_extremas):
 
 
 def test_no_pareto_given(sphere_nimbus):
-    with pytest.raises(InteractiveMethodError):
-        method_bad = SNimbus()
+    with pytest.raises(NotImplementedError):
+        method_bad = SNimbus(ScalarMOProblem([], [], []))
         method_bad.initialize(5)
 
 

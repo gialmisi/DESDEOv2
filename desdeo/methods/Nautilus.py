@@ -40,7 +40,30 @@ logger = logging.getLogger(__file__)
 class Nautilus(InteractiveMethodBase):
     """Implements the basic NAUTILUS methods as presented in `Miettinen 2010`_
 
-    TODO: Add attributes here
+    Attributes:
+        epsilon (float): A small number used in calculating the utopian point.
+        itn (int): Total number of iterations.
+        h (int): Current iteration.
+        ith (int): Number of remaining iterations.
+        lower_bound (List[np.ndarray]): The lower bounds of reachable values
+        from different iteration point.
+        upper_bound (List[np.ndarray]): The upper bounds of reachable values
+        from different iteration point.
+        zs (List[np.ndarray]): Iteration points.
+        q (np.ndarray): Current iteration point.
+        xs (List[np.ndarray]): The solutions for each iteration.
+        fs (List[np.ndarray]): The objective vector values for each iteration.
+        ds (List[float]): The distance to the pareto front in each iteration.
+        preference_index_set (np.ndarray): The current DM's preference as index
+        sets
+        preference_percentages (np.ndarray): The current DM's preferences as
+        percentages.
+        mu (np.ndarray): The current preferential factors calculated from the
+        DM preferences.
+        scalar_solver (ASFScalarSolver): A solver for solving scalarized
+        problems using ASFs.
+        asf (ReferencePointASF): Reference point based ASF used in the
+        scalar_solver
 
     .. _Miettinen 2010:
         Miettinen, K.; Eskelinen, P.; Ruiz, F. & Luque, M.
@@ -104,7 +127,7 @@ class Nautilus(InteractiveMethodBase):
     def itn(self, val: int):
         """Set the number of total iterations to be carried.
 
-        Arguments:
+        Args:
             val (int): The total number of iterations. Must be positive.
 
         Raises:
@@ -137,7 +160,7 @@ class Nautilus(InteractiveMethodBase):
         """Set the number of remaining iterations. Should be less than the current
         remaining iterations
 
-        Arguments:
+        Args:
             val (int): New number of iterations to carry out.
 
         Raises:
@@ -235,7 +258,7 @@ class Nautilus(InteractiveMethodBase):
         """Set the indexes to rank each of the objectives in order of
         importance.
 
-        Arguments:
+        Args:
             val (np.ndarray): A 1D-vector containing the preference index
             corresponding to each obejctive.
 
@@ -270,7 +293,7 @@ class Nautilus(InteractiveMethodBase):
     def preference_percentages(self, val: np.ndarray):
         """Set the percentages to descripe how to improve each objective.
 
-        Arguments:
+        Args:
             val (np.ndarray): A 1D-vector containing percentages corresponding
             to each objective.
 
@@ -352,7 +375,7 @@ class Nautilus(InteractiveMethodBase):
         caluclating the initial bounds of the problem, the nadir and ideal
         point, if not defined in the problem.
 
-        Arguments:
+        Args:
             itn (int): Number of total iterations. Defaults to 5.
 
         Returns:
@@ -557,7 +580,7 @@ class Nautilus(InteractiveMethodBase):
     ) -> Union[int, Tuple[np.ndarray, np.ndarray]]:
         """Handle user preference and set appropiate flags for the next iteration.
 
-        Arguments:
+        Args:
             index_set (np.ndarray): An array with integers describing the
             relative importance of each objective. The integers vary between 1
             and the maximum number of objectives in the problem.
@@ -647,6 +670,28 @@ class ENautilus(InteractiveMethodBase):
     """Implements the enhanced Nautilus variant, E-Nautilus originally
     presented in `Ruiz 2015`_
 
+    Args:
+        pareto_front (np.ndarray): The representation of a pareto front for a
+        problem to be solved.
+        objective_vectors (np.ndarray): The objective vectors corresponding to
+        the pareto front.
+        nadir (np.ndarray): The nadir point.
+        ideal (np.ndarray): The ideal point.
+        n_iters (int): The number of total iterations.
+        n_points (int): The number of intermediate points to be generated.
+        zshi (np.ndarray): The intermediate points at each iteration.
+        h (int): The current iteration.
+        ith (int): The iterations left.
+        par_sub (List[np.ndarray]): The subspace of the pareto front reachable
+        during each iteration.
+        par_obj (List[np.ndarray]): The subspace of the reachable objective
+        vector values during each iteration.
+        fhilo (np.ndarray): The lower bounds of the reachable set from each
+        intermediate point.
+        d (np.ndarray): How close to the pareto front the each of the
+        intermediate points are for each iteration.
+        zpref (np.ndarray): The preferred point at each iteration.
+
     .. _Ruiz 2015:
         Ruiz A. B.; Sindhya K.; Miettinen K.; Ruiz F. & Luque M.
         E-NAUTILUS: A decision support system for complex multiobjective
@@ -654,7 +699,7 @@ class ENautilus(InteractiveMethodBase):
         Europen Joural of Operational Research, 2015, 246, 218-231
     """
 
-    def __init__(self, problem: Optional[ProblemBase] = None):
+    def __init__(self, problem: ProblemBase):
         super().__init__(problem)
 
         if isinstance(problem, ScalarMOProblem):
@@ -719,7 +764,7 @@ class ENautilus(InteractiveMethodBase):
     def nadir(self, val: np.ndarray):
         """Set the nadir point.
 
-        Arguments:
+        Args:
             val (np.ndarray): The nadir point.
 
         Raises:
@@ -745,7 +790,7 @@ class ENautilus(InteractiveMethodBase):
     def ideal(self, val: np.ndarray):
         """Set the ideal point.
 
-        Arguments:
+        Args:
             val (np.ndarray): The ideal point.
 
         Raises:
@@ -771,7 +816,7 @@ class ENautilus(InteractiveMethodBase):
     def n_iters(self, val: int):
         """Set the total number of iterations to be carried out.
 
-        Arguments:
+        Args:
             val (int): The number of iterations.
 
         Raises:
@@ -793,7 +838,7 @@ class ENautilus(InteractiveMethodBase):
     def n_points(self, val: int):
         """The number of points to be presented to the DM during each iteration.
 
-        Arguments:
+        Args:
             val (int): Number of points to be shown.
 
         Raises:
@@ -882,7 +927,7 @@ class ENautilus(InteractiveMethodBase):
         either the given problem in the initializer of the class or explicitly
         given pareto and objective data.
 
-        Arguments:
+        Args:
             n_iters (int): The number of total iterations to be carried out.
             n_points (int): The number of points to be shown to the DM each
             iteration.
@@ -895,30 +940,22 @@ class ENautilus(InteractiveMethodBase):
             Tuple[np.ndarray, np.ndarray]: A tuple containing:
                 np.ndarray: The nadir point of the problem.
                 np.ndarray: The ideal point of the problem.
+        Raises:
+            NotImplementedError: The problem type must be ScalarDataProblem, if
+            not, raise this.
 
         Note:
-            The data to be used must be available in the underlying problem OR
-            given explicitly.
-            The lower bounds given in the last iteration are not relevant and
-            might be non-sensical. Just ignore them.
+            Only support solving ScalarDataProblem at the moment.
 
         """
         if isinstance(self.problem, ScalarDataProblem):
             self.pareto_front = self.problem.decision_vectors
             self.objective_vectors = self.problem.objective_vectors
-
-        elif pareto_front is not None and objective_vectors is not None:
-            self.pareto_front = pareto_front
-            self.objective_vectors = objective_vectors
-
         else:
-            msg = (
-                "Either a pre computed problem must be defined in this "
-                "class or the pareto front and objective vectors must "
-                "be explicitly given."
-            )
+            msg = ("ENautilus currently supports only "
+                   "solving ScalarDataProblems")
             logger.error(msg)
-            raise InteractiveMethodError(msg)
+            raise NotImplementedError(msg)
 
         self.n_iters = n_iters
         self.n_points = n_points
@@ -1042,7 +1079,7 @@ class ENautilus(InteractiveMethodBase):
         point are also expected. This point does not necessarely need to be a
         point returned by the iterate method in this class.
 
-        Arguments:
+        Args:
             preferred_point (np.ndarray): An objective value vector
             representing the preferred point.
             lower_bounds (np.ndarray): The lower bounds of the reachable values

@@ -1,10 +1,10 @@
-"""Common denominators for various interactive methods are defined here.
+"""Base classes for interactive methods.
 
 """
 
 import abc
 from abc import abstractmethod
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from desdeo.problem.Problem import ProblemBase
 
@@ -31,7 +31,7 @@ class InteractiveMethodBase(abc.ABC):
 
     """
 
-    def __init__(self, problem: Optional[ProblemBase] = None):
+    def __init__(self, problem: ProblemBase):
         self.__problem: ProblemBase = problem
 
     @property
@@ -43,7 +43,7 @@ class InteractiveMethodBase(abc.ABC):
         self.__problem = val
 
     @abstractmethod
-    def initialize(self, *args: Any, **kwargs: Any) -> Any:
+    def initialize(self):
         """Initializes the method.
 
         """

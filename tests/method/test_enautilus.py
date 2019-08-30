@@ -14,8 +14,9 @@ logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
 def test_initialization(sphere_pareto):
-    method = ENautilus()
     xs, fs = sphere_pareto
+    data_prob = ScalarDataProblem(xs, fs)
+    method = ENautilus(data_prob)
     nadir, ideal = method.initialize(10, 5, xs, fs)
 
     assert np.all(np.isclose(method.pareto_front, xs))
@@ -63,8 +64,9 @@ def test_initialization(sphere_pareto):
 
 
 def test_iterate(sphere_pareto):
-    method = ENautilus()
     xs, fs = sphere_pareto
+    data_prob = ScalarDataProblem(xs, fs)
+    method = ENautilus(data_prob)
     nadir, ideal = method.initialize(10, 8, xs, fs)
     zs, fs = method.iterate()
 
@@ -95,8 +97,9 @@ def test_iterate(sphere_pareto):
 
 
 def test_interact_once(sphere_pareto):
-    method = ENautilus()
     xs, fs = sphere_pareto
+    data_prob = ScalarDataProblem(xs, fs)
+    method = ENautilus(data_prob)
     nadir, ideal = method.initialize(10, 5, xs, fs)
     zs, fslow = method.iterate()
 
@@ -128,10 +131,12 @@ def test_interact_once(sphere_pareto):
 
 
 def test_interact_end(sphere_pareto):
-    method = ENautilus()
+    xs, fs = sphere_pareto
+    data_prob = ScalarDataProblem(xs, fs)
+    method = ENautilus(data_prob)
     xs, fs = sphere_pareto
     total_iter = 10
-    nadir, ideal = method.initialize(total_iter, 5, xs, fs)
+    nadir, ideal = method.initialize(total_iter, 5)
 
     for i in range(total_iter - 1):
         # till the penultimate iteration
@@ -146,11 +151,12 @@ def test_interact_end(sphere_pareto):
 
 
 def test_not_enough_points(sphere_pareto):
-    method = ENautilus()
     idxs = np.random.randint(0, len(sphere_pareto[0]), size=5)
     xs, fs = sphere_pareto[0][idxs], sphere_pareto[1][idxs]
+    data_prob = ScalarDataProblem(xs, fs)
+    method = ENautilus(data_prob)
 
-    _, _ = method.initialize(10, 10, xs, fs)
+    _, _ = method.initialize(10, 10)
     zs, lows = method.iterate()
 
     zs_is_nans = np.isnan(zs)
@@ -171,14 +177,17 @@ def test_not_enough_points(sphere_pareto):
     assert zs_points == lows_points
 
 
-@pytest.mark.snipe
 def test_iterate_too_much(sphere_pareto):
-    method = ENautilus()
+    xs, fs = sphere_pareto
+    xs = xs[:500]
+    fs = fs[:500]
+    data_prob = ScalarDataProblem(xs, fs)
+    method = ENautilus(data_prob)
     xs, fs = sphere_pareto
     xs = xs[:500]
     fs = fs[:500]
 
-    _, _ = method.initialize(10, 10, xs, fs)
+    _, _ = method.initialize(10, 10)
 
     while method.ith > 1:
         zs, lows = method.iterate()
@@ -204,39 +213,3 @@ def test_iterate_too_much(sphere_pareto):
     print(last_x)
     assert np.all(np.isclose(last_x, much_x))
     assert np.all(np.isclose(last_f, much_f))
-
-
-def test_dataproblem(sphere_pareto):
-    xs, fs = sphere_pareto
-    data_prob = ScalarDataProblem(xs, fs)
-    method_data = ENautilus(data_prob)
-    method_expl = ENautilus()
-
-    method_data.initialize(10, 7)
-    method_expl.initialize(10, 7, xs, fs)
-
-    np.random.seed(1)
-    zs_data, lows_data = method_data.iterate()
-    np.random.seed(1)
-    zs_expl, lows_expl = method_expl.iterate()
-
-    assert np.all(np.isclose(zs_data, zs_expl))
-    assert np.all(np.isclose(lows_data, lows_expl))
-
-    for i in range(3):
-        np.random.seed(1)
-        method_data.interact(zs_data[i], lows_data[i])
-        zs_data, lows_data = method_data.iterate()
-
-        np.random.seed(1)
-        method_expl.interact(zs_expl[i], lows_expl[i])
-        zs_expl, lows_expl = method_expl.iterate()
-
-    assert np.all(np.isclose(zs_data, zs_expl))
-    assert np.all(np.isclose(lows_data, lows_expl))
-
-    np.random.seed(None)
-
-    with pytest.raises(InteractiveMethodError):
-        method2 = ENautilus()
-        method2.initialize(5, 10)
