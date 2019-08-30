@@ -39,6 +39,8 @@ class ProblemBase(ABC):
         self.__ideal: np.ndarray = None
         self.__n_of_objectives: int = 0
         self.__n_of_variables: int = 0
+        self.__decision_vectors: np.ndarray = None
+        self.__objective_vectors: np.ndarray = None
 
     @property
     def nadir(self) -> np.ndarray:
@@ -72,6 +74,22 @@ class ProblemBase(ABC):
     def n_of_variables(self, val: int):
         self.__n_of_variables = val
 
+    @property
+    def decision_vectors(self) -> np.ndarray:
+        return self.__decision_vectors
+
+    @decision_vectors.setter
+    def decision_vectors(self, val: np.ndarray):
+        self.__decision_vectors = val
+
+    @property
+    def objective_vectors(self) -> np.ndarray:
+        return self.__objective_vectors
+
+    @objective_vectors.setter
+    def objective_vectors(self, val: np.ndarray):
+        self.__objective_vectors = val
+
     @abstractmethod
     def get_variable_bounds(self) -> Union[None, np.ndarray]:
         pass
@@ -92,6 +110,17 @@ class ProblemBase(ABC):
                 values for each input vector.
                 constraints (Union[np.ndarray, None]): The constraint values
                 of the problem corresponding each input vector.
+
+        """
+        pass
+
+    @abstractmethod
+    def evaluate_constraint_values(self) -> Optional[np.ndarray]:
+        """Evaluate just the constraint function values using the attributes
+        decision_vectors and objective_vectors
+
+        Note:
+            Currently not supported by ScalarMOProblem
 
         """
         pass
@@ -384,6 +413,19 @@ class ScalarMOProblem(ProblemBase):
 
         return (objective_vectors, constraint_values)
 
+    def evaluate_constraint_values(self) -> Optional[np.ndarray]:
+        """Evaluate just the constraint function values using the attributes
+        decision_vectors and objective_vectors
+
+        Raises:
+            NotImplementedError
+
+        Note:
+            Currently not supported by ScalarMOProblem
+
+        """
+        raise NotImplementedError("Not implemented for ScalarMOProblem")
+
 
 class ScalarDataProblem(ProblemBase):
     """Defines a problem with pre-computed data representing a multiobjective
@@ -416,11 +458,12 @@ class ScalarDataProblem(ProblemBase):
 
     """
 
-    def __init__(self, decision_vectors: np.ndarray,
-                 objective_vectors: np.ndarray):
+    def __init__(
+        self, decision_vectors: np.ndarray, objective_vectors: np.ndarray
+    ):
         super().__init__()
-        self.__decision_vectors: np.ndarray = decision_vectors
-        self.__objective_vectors: np.ndarray = objective_vectors
+        self.decision_vectors: np.ndarray = decision_vectors
+        self.objective_vectors: np.ndarray = objective_vectors
         # epsilon is used when computing the bounds. We don't want to exclude
         # any of the solutions that contain border values.
         # See get_variable_bounds
@@ -452,22 +495,6 @@ class ScalarDataProblem(ProblemBase):
 
         self.nadir = np.max(self.objective_vectors, axis=0)
         self.ideal = np.min(self.objective_vectors, axis=0)
-
-    @property
-    def decision_vectors(self) -> np.ndarray:
-        return self.__decision_vectors
-
-    @decision_vectors.setter
-    def decision_vectors(self, val: np.ndarray):
-        self.__decision_vectors = val
-
-    @property
-    def objective_vectors(self) -> np.ndarray:
-        return self.__objective_vectors
-
-    @objective_vectors.setter
-    def objective_vectors(self, val: np.ndarray):
-        self.__objective_vectors = val
 
     @property
     def epsilon(self) -> float:
@@ -528,9 +555,7 @@ class ScalarDataProblem(ProblemBase):
 
         return constraint_values
 
-    def evaluate(
-        self, decision_vectors: np.ndarray
-    ) -> np.ndarray:
+    def evaluate(self, decision_vectors: np.ndarray) -> np.ndarray:
         """Evaluate the values of the objectives corresponding to the decision
         decision_vectors.
 

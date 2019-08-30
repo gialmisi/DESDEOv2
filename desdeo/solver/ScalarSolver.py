@@ -6,7 +6,7 @@ import logging
 import logging.config
 from abc import abstractmethod
 from os import path
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 
@@ -52,7 +52,9 @@ class ScalarSolverBase(abc.ABC):
 
     """
 
-    def __init__(self, problem: ProblemBase, method: NumericalMethodBase):
+    def __init__(
+        self, problem: Union[ProblemBase], method: NumericalMethodBase
+    ):
         self.__problem = problem
         self.__method = method
 
@@ -75,7 +77,6 @@ class ScalarSolverBase(abc.ABC):
     @abstractmethod
     def _evaluator(
         self,
-        problem: ProblemBase,
         decision_vectors: np.ndarray,
         objective_vectors: Optional[np.ndarray],
     ) -> np.ndarray:
@@ -398,6 +399,11 @@ class ASFScalarSolver(ScalarSolverBase):
         Args:
             decision_vectors (np.ndarray): An array of arrays representing the
             decision variable values to evaluate the underlaying MOO problem.
+            objective_vectors (Optional[np.ndarray]): An array of arrays
+            representing the objective vector values of the problem.
+            constraints (Optional[np.ndarray]): An array of arrays containing
+            the constraints values evaluated with each entry of decision
+            vectors and objective vectors
 
         Returns:
             np.ndarray: An array of the ASF problem values corresponding to
@@ -418,9 +424,9 @@ class ASFScalarSolver(ScalarSolverBase):
         elif constraints is not None:
             constraints = constraints
 
-        asf_values = np.zeros(len(objective_vectors))
+        asf_values = np.zeros(len(objective_vectors))  # type: ignore
 
-        for (ind, elem) in enumerate(objective_vectors):
+        for (ind, elem) in enumerate(objective_vectors):  # type: ignore
             if constraints is not None and np.any(constraints[ind] < 0):
                 # suicide method for broken constraints
                 asf_values[ind] = np.inf

@@ -1,3 +1,6 @@
+"""Implementation of solvers to find certain set of points.
+
+"""
 import abc
 import logging
 import logging.config
@@ -87,7 +90,7 @@ class IdealAndNadirPointSolver(PointSolverBase):
             float: The value of the specified objective function.
 
         """
-        objective_vals, constraint_vals = self.__problem.evaluate(
+        objective_vals, constraint_vals = self.problem.evaluate(
             decision_vector
         )
         if constraint_vals is not None and np.any(constraint_vals < 0):
@@ -111,16 +114,16 @@ class IdealAndNadirPointSolver(PointSolverBase):
             representation of the real nadir point.
         """
         pay_off_table = np.zeros(
-            (self.__problem.n_of_objectives, self.__problem.n_of_objectives)
+            (self.__problem.n_of_objectives, self.problem.n_of_objectives)
         )
         func = self._evaluator
         bounds = self.problem.get_variable_bounds()
 
-        for ind in range(self.__problem.n_of_objectives):
+        for ind in range(self.problem.n_of_objectives):
             args = (ind,)
             x = self.method.run(func, bounds, args)
 
-            pay_off_table[ind], _ = self.__problem.evaluate(x)
+            pay_off_table[ind], _ = self.problem.evaluate(x)
 
         # The ideal point can be found on the diagonal of the PO-table,
         # and an estimate of the nadir by taking the maximun value of each
