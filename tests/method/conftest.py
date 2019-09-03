@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from desdeo.methods.Nautilus import Nautilus
+from desdeov2.methods.Nautilus import Nautilus
 
 
 @pytest.fixture

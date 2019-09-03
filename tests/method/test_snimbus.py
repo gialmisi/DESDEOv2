@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from desdeo.methods.InteractiveMethod import InteractiveMethodError
-from desdeo.methods.Nimbus import SNimbus
-from desdeo.problem.Problem import ScalarDataProblem, ScalarMOProblem
+from desdeov2.methods.InteractiveMethod import InteractiveMethodError
+from desdeov2.methods.Nimbus import SNimbus
+from desdeov2.problem.Problem import ScalarDataProblem, ScalarMOProblem
 
 
 @pytest.fixture

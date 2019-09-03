@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from desdeo.problem.Objective import ObjectiveError, ScalarObjective
+from desdeov2.problem.Objective import ObjectiveError, ScalarObjective
 
 
 @pytest.fixture

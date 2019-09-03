@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from desdeo.solver.ASF import SimpleASF
-from desdeo.solver.NumericalMethods import ScipyDE
-from desdeo.solver.ScalarSolver import (
+from desdeov2.solver.ASF import SimpleASF
+from desdeov2.solver.NumericalMethods import ScipyDE
+from desdeov2.solver.ScalarSolver import (
     ASFScalarSolver,
     EpsilonConstraintScalarSolver,
     ScalarSolverError,

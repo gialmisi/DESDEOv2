@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from desdeo.solver.NumericalMethods import ScipyDE
-from desdeo.solver.PointSolver import IdealAndNadirPointSolver
+from desdeov2.solver.NumericalMethods import ScipyDE
+from desdeov2.solver.PointSolver import IdealAndNadirPointSolver
 
 
 @pytest.fixture

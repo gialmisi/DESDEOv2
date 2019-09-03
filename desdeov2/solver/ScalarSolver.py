@@ -10,9 +10,9 @@ from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 
-from desdeo.problem.Problem import ProblemBase
-from desdeo.solver.ASF import ASFBase
-from desdeo.solver.NumericalMethods import (
+from desdeov2.problem.Problem import ProblemBase
+from desdeov2.solver.ASF import ASFBase
+from desdeov2.solver.NumericalMethods import (
     DiscreteMinimizer,
     NumericalMethodBase,
     ScipyDE,

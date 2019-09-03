@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from desdeo.problem.Constraint import (
+from desdeov2.problem.Constraint import (
     ConstraintError,
     ScalarConstraint,
     constraint_function_factory,

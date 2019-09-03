@@ -11,23 +11,23 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 from sklearn.cluster import KMeans
 
-from desdeo.methods.InteractiveMethod import (
+from desdeov2.methods.InteractiveMethod import (
     InteractiveMethodBase,
     InteractiveMethodError,
 )
-from desdeo.problem.Problem import (
+from desdeov2.problem.Problem import (
     ProblemBase,
     ScalarDataProblem,
     ScalarMOProblem,
 )
-from desdeo.solver.ASF import ReferencePointASF
-from desdeo.solver.NumericalMethods import NumericalMethodBase, ScipyDE
-from desdeo.solver.PointSolver import IdealAndNadirPointSolver
-from desdeo.solver.ScalarSolver import (
+from desdeov2.solver.ASF import ReferencePointASF
+from desdeov2.solver.NumericalMethods import NumericalMethodBase, ScipyDE
+from desdeov2.solver.PointSolver import IdealAndNadirPointSolver
+from desdeov2.solver.ScalarSolver import (
     ASFScalarSolver,
     EpsilonConstraintScalarSolver,
 )
-from desdeo.utils.frozen import frozen
+from desdeov2.utils.frozen import frozen
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"

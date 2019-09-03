@@ -11,25 +11,25 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
-from desdeo.methods.InteractiveMethod import (
+from desdeov2.methods.InteractiveMethod import (
     InteractiveMethodBase,
     InteractiveMethodError,
 )
-from desdeo.problem.Constraint import ScalarConstraint
-from desdeo.problem.Problem import (
+from desdeov2.problem.Constraint import ScalarConstraint
+from desdeov2.problem.Problem import (
     ProblemBase,
     ScalarDataProblem,
     ScalarMOProblem,
 )
-from desdeo.solver.ASF import (
+from desdeov2.solver.ASF import (
     AugmentedGuessASF,
     MaxOfTwoASF,
     PointMethodASF,
     StomASF,
 )
-from desdeo.solver.NumericalMethods import DiscreteMinimizer
-from desdeo.solver.ScalarSolver import ASFScalarSolver
-from desdeo.utils.frozen import frozen
+from desdeov2.solver.NumericalMethods import DiscreteMinimizer
+from desdeov2.solver.ScalarSolver import ASFScalarSolver
+from desdeov2.utils.frozen import frozen
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"

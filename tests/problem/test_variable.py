@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from desdeo.problem.Variable import Variable, VariableError
+from desdeov2.problem.Variable import Variable, VariableError
 
 
 @pytest.fixture

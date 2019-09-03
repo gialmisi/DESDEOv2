@@ -10,8 +10,8 @@ from typing import Tuple
 
 import numpy as np
 
-from desdeo.problem.Problem import ProblemBase
-from desdeo.solver.NumericalMethods import NumericalMethodBase
+from desdeov2.problem.Problem import ProblemBase
+from desdeov2.solver.NumericalMethods import NumericalMethodBase
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"

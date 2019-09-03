@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from desdeo.solver.ASF import (
+from desdeov2.solver.ASF import (
     ASFError,
     AugmentedGuessASF,
     MaxOfTwoASF,

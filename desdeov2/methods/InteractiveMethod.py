@@ -5,7 +5,7 @@
 import abc
 from abc import abstractmethod
 
-from desdeo.problem.Problem import ProblemBase
+from desdeov2.problem.Problem import ProblemBase
 
 
 class InteractiveMethodError(Exception):

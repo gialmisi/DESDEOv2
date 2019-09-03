@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from desdeo.methods.InteractiveMethod import InteractiveMethodError
-from desdeo.methods.Nautilus import Nautilus
+from desdeov2.methods.InteractiveMethod import InteractiveMethodError
+from desdeov2.methods.Nautilus import Nautilus
 
 
 def test_calculate_iteration_point(NautilusInitializedRiver):

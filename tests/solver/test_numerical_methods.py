@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from desdeo.solver.NumericalMethods import (
+from desdeov2.solver.NumericalMethods import (
     DiscreteMinimizer,
     NumericalMethodError,
 )

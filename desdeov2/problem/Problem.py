@@ -11,9 +11,9 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
-from desdeo.problem.Constraint import ScalarConstraint
-from desdeo.problem.Objective import ScalarObjective
-from desdeo.problem.Variable import Variable
+from desdeov2.problem.Constraint import ScalarConstraint
+from desdeov2.problem.Objective import ScalarObjective
+from desdeov2.problem.Variable import Variable
 
 log_conf_path = path.join(
     path.dirname(path.abspath(__file__)), "../logger.cfg"

@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 from mpl_toolkits.mplot3d import Axes3D  # noqa
 
-from desdeo.methods.InteractiveMethod import InteractiveMethodError
-from desdeo.methods.Nautilus import ENautilus
-from desdeo.problem.Problem import ScalarDataProblem
+from desdeov2.methods.InteractiveMethod import InteractiveMethodError
+from desdeov2.methods.Nautilus import ENautilus
+from desdeov2.problem.Problem import ScalarDataProblem
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 

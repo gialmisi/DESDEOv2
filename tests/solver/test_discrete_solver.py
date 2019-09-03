@@ -1,9 +1,9 @@
 import numpy as np
 
-from desdeo.problem.Problem import ScalarConstraint
-from desdeo.solver.ASF import SimpleASF
-from desdeo.solver.NumericalMethods import DiscreteMinimizer
-from desdeo.solver.ScalarSolver import (
+from desdeov2.problem.Problem import ScalarConstraint
+from desdeov2.solver.ASF import SimpleASF
+from desdeov2.solver.NumericalMethods import DiscreteMinimizer
+from desdeov2.solver.ScalarSolver import (
     ASFScalarSolver,
     EpsilonConstraintScalarSolver,
     WeightingMethodScalarSolver,

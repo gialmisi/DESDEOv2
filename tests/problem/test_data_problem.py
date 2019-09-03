@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from desdeo.problem.Problem import ScalarDataProblem
+from desdeov2.problem.Problem import ScalarDataProblem
 
 
 @pytest.fixture
