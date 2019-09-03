@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "desdeov2"
+version = "0.1.0"
+description = "Rewrite of the original DESDEO framework. Contains traditional MCDM algorithms and scalarization utilities. To be split into multiple modules."
+authors = ["Giovanni Misitano <gialmisi@student.jyu.fi>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+numpy = "^1.17"
+scipy = "^1.3"
+sklearn = "^0.0.0"
+jupyter = "^1.0"
+plotly = "^4.1"
+
+[tool.poetry.dev-dependencies]
+flake8 = "^3.7"
+black = {version = "^18.3-alpha.0", allows-prereleases = true}
+pytest = "^5.1"
+isort = "^4.3"
+mypy = "^0.720.0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
