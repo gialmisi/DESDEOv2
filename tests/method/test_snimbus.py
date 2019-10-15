@@ -230,7 +230,6 @@ def test_calculate_intermediate(simple_nimbus):
     assert len(fs) == 5
 
 
-@pytest.mark.snipe
 def test_iterate(simple_nimbus):
     method = simple_nimbus
     method.initialize(4, starting_point=np.array([-1.5, -8.8, 8.5, 1.2]))

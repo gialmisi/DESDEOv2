@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from sklearn.cluster import KMeans
+from sklearn.metrics import pairwise_distances_argmin_min
 
 from desdeov2.methods.InteractiveMethod import (
     InteractiveMethodBase,
@@ -1025,11 +1026,15 @@ class ENautilus(InteractiveMethodBase):
             )
             return self.zshi[self.h - 1], self.fhilo[self.h - 1]
 
-        # Use clustering to find the most representative points
+        # Use clustering to find the most representative points in the
+        # objective subspace
         if self.n_points <= len(self.obj_sub[self.h]):
             kmeans = KMeans(n_clusters=self.n_points)
             kmeans.fit(self.obj_sub[self.h])
-            zbars = kmeans.cluster_centers_
+            # find the closest points to the centroids
+            closest, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_,
+                                                       self.obj_sub[self.h])
+            zbars = self.obj_sub[self.h][closest]
         else:
             # the subspace has less or an equal amount of points to the number
             # points to be shown, just use the subspace

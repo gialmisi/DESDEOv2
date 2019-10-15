@@ -212,3 +212,32 @@ def test_iterate_too_much(sphere_pareto):
     print(last_x)
     assert np.all(np.isclose(last_x, much_x))
     assert np.all(np.isclose(last_f, much_f))
+
+
+@pytest.mark.snipe
+def test_article_example():
+    """Tests the numerical example presented in the original article
+
+    """
+    data = np.loadtxt("./data/article_enautilus.dat")
+    # convert the 1st and 3rd objectives to minimization objectives
+    data = data * np.array([-1, 1, -1])
+
+    # form the problem
+    problem = ScalarDataProblem(data, data)
+    method = ENautilus(problem)
+    method.initialize(5, 6)
+
+    # check the ideal and nadir, up to 2 decimals
+    nadir_article = np.array([-408.49, 9.28, -22.13])
+    ideal_article = np.array([-47526.37, 0.05, -100.00])
+
+    nadir_rounded = np.around(method.nadir, 2)
+    ideal_rounded = np.around(method.ideal, 2)
+
+    assert np.allclose(nadir_article, nadir_rounded)
+    assert np.allclose(ideal_article, ideal_rounded)
+
+    # first iteration
+    zs, lows = method.iterate()
+    print("zs:", np.around(zs, 2))
