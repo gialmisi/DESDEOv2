@@ -1014,7 +1014,7 @@ class ENautilus(InteractiveMethodBase):
             be padded with NaNs.
 
         """
-        if self.ith <= 1:
+        if self.ith < 1:
             logger.info(
                 (
                     "Last iteration, or trying to iterate past the last "
