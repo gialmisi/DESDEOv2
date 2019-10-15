@@ -1149,3 +1149,66 @@ class ENautilus(InteractiveMethodBase):
         self.h += 1
 
         return self.ith
+
+
+class ENautilusB(ENautilus):
+    """A version of E-NAUTILUS which will only calculate the reachable bounds
+    for a given point.
+
+    """
+    def iterate(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Calculate the distance to the pareto front and the bounds of the
+        reachable values from the given point.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: A tuple containing:
+                np.ndarray: The distance to the pareto front
+                np.ndarray: The lower bounds of the reachable values from the
+                intermediate point.
+
+        """
+        # calculate the lower bounds, just use the 0th index
+        for r in range(self.objective_vectors.shape[1]):
+            col_mask = np.full(self.objective_vectors.shape[1], True)
+            col_mask[r] = False
+            for i in range(len(self.zpref)):
+                mask = np.all(
+                    self.zpref[col_mask]
+                    >= self.obj_sub[0][:, col_mask],
+                    axis=1,
+                )
+
+                # if the mask if full of false, do nothing
+                if not np.all(~mask):
+                    self.fhilo[0, i, r] = np.min(
+                        self.obj_sub[0][mask, r]
+                    )
+
+        # calculate the distances to the pareto front for each representative
+        # point
+        closest, _ = pairwise_distances_argmin_min(self.zpref.reshape(1, -1),
+                                                   self.obj_sub[0])
+        zbar = self.obj_sub[0][closest]
+
+        self.d[0][0] = (  # noqa
+            np.linalg.norm(
+                self.zpref - self.nadir  # noqa
+            ) / np.linalg.norm(
+                zbar - self.nadir
+            )
+        ) * 100
+
+        return self.fhilo[0][0], self.d[0][0]
+
+    def interact(  # type: ignore
+        self, preferred_point: np.ndarray
+    ) -> None:
+        """Specify the next preferred point from which to iterate in the next
+        iteration.
+
+        Args:
+            preferred_point (np.ndarray): An objective value vector
+            representing the preferred point.
+
+        """
+        self.zpref = preferred_point
